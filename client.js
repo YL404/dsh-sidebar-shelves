@@ -92,13 +92,12 @@ window.__ModuleLoader__.load({
       'file.title': '选择图标文件',
       'file.cancel': '取消',
       'file.pick': '使用此图标',
-      'file.hint': '选一张图片作为图标',
+      'file.hint': '选一张方形图片作为图标',
       'file.search': '搜索图片…',
       'file.scanning': '正在扫描工作区…',
-      'file.count': '找到 {n} 张图片',
-      'file.loading': '读取中…',
-      'file.failed': '无法读取这个文件',
-      'file.empty': '工作区里没有图片文件',
+      'file.checking': '正在检查尺寸 {done}/{total}',
+      'file.count': '{n} 张方形图片',
+      'file.empty': '工作区里没有方形图片',
       'file.noMatch': '没有匹配的图片',
       'status.working': '工作中',
       'status.approval': '待审批',
@@ -128,13 +127,12 @@ window.__ModuleLoader__.load({
       'file.title': 'Choose an icon file',
       'file.cancel': 'Cancel',
       'file.pick': 'Use this icon',
-      'file.hint': 'Pick an image to use as the icon',
+      'file.hint': 'Pick a square image as the icon',
       'file.search': 'Search images…',
       'file.scanning': 'Scanning the workspace…',
-      'file.count': '{n} images found',
-      'file.loading': 'Reading…',
-      'file.failed': 'Could not read this file',
-      'file.empty': 'No image files in this workspace',
+      'file.checking': 'Checking sizes {done}/{total}',
+      'file.count': '{n} square images',
+      'file.empty': 'No square images in this workspace',
       'file.noMatch': 'No matching images',
       'status.working': 'Working',
       'status.approval': 'Approval',
@@ -228,34 +226,32 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-files-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--dsw-alias-border-l1)}',
       '.dsh-shelves-files-title{flex:none;font-size:13px;font-weight:600}',
       '.dsh-shelves-files-name{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-shelves-files-body{display:flex;flex:1 1 auto;min-height:0}',
-      '.dsh-shelves-files-list{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0;padding:6px}',
-      '.dsh-shelves-files-search{display:flex;flex:none;align-items:center;gap:6px;height:30px;margin-bottom:6px;padding:0 8px;border-radius:7px;background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-files-toolbar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l1)}',
+      '.dsh-shelves-files-search{display:flex;flex:1 1 auto;align-items:center;gap:6px;height:30px;padding:0 8px;border-radius:7px;background:var(--dsw-alias-bg-layer-2)}',
       '.dsh-shelves-files-search input{flex:1 1 auto;min-width:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}',
       '.dsh-shelves-files-search input::placeholder{color:var(--dsw-alias-label-secondary)}',
-      '.dsh-shelves-files-rows{flex:1 1 auto;min-height:0;overflow-y:auto}',
-      '.dsh-shelves-files-count{margin-right:auto;align-self:center;font-size:11px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
-      '.dsh-shelves-files-row{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:30px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-align:left;cursor:pointer}',
-      '.dsh-shelves-files-row:hover{background:var(--dsw-alias-bg-layer-2)}',
-      '.dsh-shelves-files-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
-      '.dsh-shelves-files-row[aria-selected="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 16%,transparent)}',
+      '.dsh-shelves-files-status{flex:none;font-size:11px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
       '.dsh-shelves-files-glyph{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-shelves-files-row-name{display:flex;align-items:baseline;min-width:0}',
-      '.dsh-shelves-files-row-dir{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-shelves-files-row-file{flex:0 0 auto;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-shelves-files-row-size{margin-left:auto;flex:none;font-size:11px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
-      '.dsh-shelves-files-preview{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;width:190px;padding:14px;border-left:1px solid var(--dsw-alias-border-l1)}',
-      '.dsh-shelves-files-preview img{width:96px;height:96px;object-fit:contain;border-radius:8px}',
-      '.dsh-shelves-files-preview-name{font-size:11px;color:var(--dsw-alias-label-secondary);text-align:center;word-break:break-all}',
+      '.dsh-shelves-files-rows{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px}',
+      '.dsh-shelves-files-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px}',
+      '.dsh-shelves-files-cell{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:4px;border:0;border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}',
+      '.dsh-shelves-files-cell:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-files-cell:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
+      '.dsh-shelves-files-cell[aria-selected="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 18%,transparent)}',
+      '.dsh-shelves-files-cell[aria-selected="true"] .dsh-shelves-files-thumb{box-shadow:0 0 0 2px var(--dsw-alias-brand-primary)}',
+      '.dsh-shelves-files-thumb{display:flex;flex:none;align-items:center;justify-content:center;width:56px;height:56px;overflow:hidden;border-radius:10px;background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-files-thumb img{display:block;width:100%;height:100%;object-fit:contain}',
+      '.dsh-shelves-files-cell-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-files-cell[aria-selected="true"] .dsh-shelves-files-cell-name{color:var(--dsw-alias-label-primary)}',
+      '.dsh-shelves-files-selected{margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-files-empty{padding:16px 10px;font-size:12px;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-files-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--dsw-alias-border-l1)}',
-      '.dsh-shelves-files-btn{height:28px;padding:0 12px;border:0;border-radius:7px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}',
+      '.dsh-shelves-files-btn{flex:none;height:28px;padding:0 12px;border:0;border-radius:7px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;white-space:nowrap;cursor:pointer}',
       '.dsh-shelves-files-btn:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 12%,var(--dsw-alias-bg-layer-2))}',
       '.dsh-shelves-files-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dsh-shelves-files-btn:disabled{opacity:.45;cursor:default}',
       '.dsh-shelves-files-btn-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base)}',
       '.dsh-shelves-files-btn-primary:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 86%,var(--dsw-alias-bg-base))}',
-      '@media (max-width:520px){.dsh-shelves-files-preview{display:none}}',
       '.dsh-shelves-row:hover .dsh-shelves-time,.dsh-shelves-row:focus-within .dsh-shelves-time{opacity:0}',
       '.dsh-shelves-empty{padding:16px 10px;color:var(--dsw-alias-label-secondary);font-size:12px}',
       '.dsh-shelves-rail{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:36px;height:36px;margin:0 auto;border:0;border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;font-variant-numeric:tabular-nums;cursor:pointer}',
@@ -451,7 +447,7 @@ window.__ModuleLoader__.load({
     async function loadIconUrl(readFileBytes, sessionId, absolutePath) {
       const mime = iconMime(absolutePath);
       if (mime === null) return null;
-      const result = await readFileBytes(sessionId, absolutePath);
+      const result = await readFileBytes(sessionId, absolutePath, MAX_ICON_BYTES);
       if (result?.ok !== true || result.value.eof !== true) return null;
       return URL.createObjectURL(new Blob([result.value.data], { type: mime }));
     }
@@ -647,43 +643,247 @@ window.__ModuleLoader__.load({
       return { files, error };
     }
 
-    // A flat list of every image the workspace offers, filtered by a search box,
-    // so no directory-by-directory hunting. Selecting one previews and confirms.
+    const ICON_HEADER_BYTES = 32 * 1024;
+    // A tile is 14px, so a 2% difference never shows; exact equality would drop
+    // icons exported a pixel off.
+    const SQUARE_TOLERANCE = 0.02;
+    const SQUARE_CACHE = new Map();
+
+    const readU16BE = (bytes, at) => (bytes[at] << 8) | bytes[at + 1];
+    const readU16LE = (bytes, at) => bytes[at] | (bytes[at + 1] << 8);
+    const readU32BE = (bytes, at) => ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0;
+    const readU32LE = (bytes, at) => (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24)) >>> 0;
+
+    // Pixel size from the file header alone, so a whole workspace is filtered
+    // without downloading every image. Each branch reads only the fields the
+    // format puts near the start; null means the header did not say.
+    function imageDimensions(bytes) {
+      const length = bytes.length;
+      if (length < 12) return null;
+      // PNG: IHDR width and height, big endian.
+      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+        return length >= 24 ? { width: readU32BE(bytes, 16), height: readU32BE(bytes, 20) } : null;
+      }
+      // GIF: logical screen size, little endian.
+      if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+        return length >= 10 ? { width: readU16LE(bytes, 6), height: readU16LE(bytes, 8) } : null;
+      }
+      // BMP: DIB header, height may be negative for top-down rows.
+      if (bytes[0] === 0x42 && bytes[1] === 0x4d) {
+        return length >= 26
+          ? { width: Math.abs(readU32LE(bytes, 18) | 0), height: Math.abs(readU32LE(bytes, 22) | 0) }
+          : null;
+      }
+      // WebP: VP8X canvas, VP8L lossless bitfield, or the VP8 lossy frame header.
+      if (
+        bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+        bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50 && length >= 30
+      ) {
+        const chunk = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+        if (chunk === 'VP8X') {
+          return {
+            width: 1 + (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16)),
+            height: 1 + (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16)),
+          };
+        }
+        if (chunk === 'VP8L') {
+          const bits = readU32LE(bytes, 21);
+          return { width: 1 + (bits & 0x3fff), height: 1 + ((bits >>> 14) & 0x3fff) };
+        }
+        if (chunk === 'VP8 ') return { width: readU16LE(bytes, 26) & 0x3fff, height: readU16LE(bytes, 28) & 0x3fff };
+        return null;
+      }
+      // JPEG: walk segments to the first start-of-frame.
+      if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+        let at = 2;
+        while (at + 9 < length) {
+          if (bytes[at] !== 0xff) {
+            at += 1;
+            continue;
+          }
+          const marker = bytes[at + 1];
+          if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+            at += 2;
+            continue;
+          }
+          const size = readU16BE(bytes, at + 2);
+          if (size < 2) return null;
+          if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+            return { width: readU16BE(bytes, at + 7), height: readU16BE(bytes, at + 5) };
+          }
+          at += 2 + size;
+        }
+        return null;
+      }
+      // ICO: the first directory entry; zero means 256.
+      if (bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 1 && bytes[3] === 0) {
+        if (length < 8) return null;
+        return { width: bytes[6] === 0 ? 256 : bytes[6], height: bytes[7] === 0 ? 256 : bytes[7] };
+      }
+      // SVG: viewBox first, then explicit width and height.
+      const head = new TextDecoder().decode(bytes.subarray(0, Math.min(length, 4096))).trimStart();
+      if (head.startsWith('<svg') || head.startsWith('<?xml')) {
+        const viewBox = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(head);
+        if (viewBox !== null) return { width: Number(viewBox[1]), height: Number(viewBox[2]) };
+        const width = /\bwidth\s*=\s*["']([\d.]+)/i.exec(head);
+        const height = /\bheight\s*=\s*["']([\d.]+)/i.exec(head);
+        if (width !== null && height !== null) return { width: Number(width[1]), height: Number(height[1]) };
+        return null;
+      }
+      // AVIF and HEIC: the first ispe box carries the display size.
+      for (let at = 0; at + 16 < length; at += 1) {
+        if (bytes[at] === 0x69 && bytes[at + 1] === 0x73 && bytes[at + 2] === 0x70 && bytes[at + 3] === 0x65) {
+          return { width: readU32BE(bytes, at + 8), height: readU32BE(bytes, at + 12) };
+        }
+      }
+      return null;
+    }
+
+    function isSquare(dimensions) {
+      if (dimensions === null) return false;
+      const { width, height } = dimensions;
+      if (!(width > 0) || !(height > 0)) return false;
+      return Math.abs(width - height) <= Math.max(1, Math.round(Math.max(width, height) * SQUARE_TOLERANCE));
+    }
+
+    // Filter in bounded waves so a 500-image workspace keeps the dialog responsive;
+    // results are remembered per path and byte size, so reopening is instant.
+    async function squareImages(readFileBytes, sessionId, workspacePath, files, signal, onProgress) {
+      const square = [];
+      let cursor = 0;
+      let done = 0;
+      const worker = async () => {
+        while (cursor < files.length && !signal.aborted) {
+          const file = files[cursor];
+          cursor += 1;
+          const key = `${file.path}:${file.size ?? 0}`;
+          let dimensions = SQUARE_CACHE.get(key);
+          if (dimensions === undefined) {
+            try {
+              const read = await readFileBytes(sessionId, `${workspacePath}/${file.path}`, ICON_HEADER_BYTES, signal);
+              dimensions = read?.ok === true ? imageDimensions(read.value.data) : null;
+            } catch {
+              dimensions = null;
+            }
+            SQUARE_CACHE.set(key, dimensions);
+          }
+          if (isSquare(dimensions)) square.push({ ...file, width: dimensions.width, height: dimensions.height });
+          done += 1;
+          if (done % 8 === 0 || done === files.length) onProgress(done);
+        }
+      };
+      await Promise.all(Array.from({ length: 8 }, worker));
+      square.sort(
+        (left, right) =>
+          (left.path.split('/').length - right.path.split('/').length) ||
+          left.path.localeCompare(right.path, undefined, { numeric: true, sensitivity: 'base' }),
+      );
+      return square;
+    }
+
+    // A thumbnail that reads its file only once the cell approaches the viewport,
+    // so a large result set never downloads everything up front.
+    function FileThumb(props) {
+      const { workspaceId, workspacePath, sessionId, file, readFileBytes } = props;
+      const node = React.useRef(null);
+      const [visible, setVisible] = React.useState(false);
+      React.useEffect(() => {
+        if (visible) return undefined;
+        const element = node.current;
+        if (element === null || typeof IntersectionObserver === 'undefined') {
+          setVisible(true);
+          return undefined;
+        }
+        const observer = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+              setVisible(true);
+              observer.disconnect();
+            }
+          },
+          { rootMargin: '160px' },
+        );
+        observer.observe(element);
+        return () => observer.disconnect();
+      }, [visible]);
+      const key = visible ? `${workspaceId}:${file.path}` : null;
+      const url = useIconUrl(key, () => loadIconUrl(readFileBytes, sessionId, `${workspacePath}/${file.path}`));
+      return h(
+        'span',
+        { ref: node, className: 'dsh-shelves-files-thumb' },
+        url === null ? null : h('img', { src: url, alt: '', draggable: false }),
+      );
+    }
+
+    // Two icons named icon.svg in different folders need their folder to tell them apart.
+    function labelOf(file, basenames) {
+      const base = file.path.slice(file.path.lastIndexOf('/') + 1);
+      if ((basenames.get(base) ?? 0) < 2) return base;
+      const parts = file.path.split('/');
+      return parts.length > 1 ? `${parts[parts.length - 2]}/${base}` : base;
+    }
+
+    // Square images only, previewed as a grid: the shape an icon tile needs, with
+    // the size filter done from headers so the whole workspace stays cheap.
     function FileDialog(props) {
-      const { workspaceId, workspacePath, sessionId, name, listFiles, readFileBytes, t, onClose, onPick } = props;
-      const [scan, setScan] = React.useState({ status: 'loading', files: [], error: null });
+      const { workspaceId, workspacePath, sessionId, name, current, listFiles, readFileBytes, t, onClose, onPick } = props;
+      const [phase, setPhase] = React.useState({ status: 'scanning', done: 0, total: 0, error: null });
+      const [files, setFiles] = React.useState([]);
       const [query, setQuery] = React.useState('');
       const [selected, setSelected] = React.useState(null);
-      const [preview, setPreview] = React.useState(null);
+      const preselected = React.useRef(false);
+
+      // Opening the picker starts on the icon this Workspace already uses.
+      React.useEffect(() => {
+        if (preselected.current || current === '' || files.length === 0) return;
+        const match = files.find((file) => file.path === current);
+        if (match === undefined) return;
+        preselected.current = true;
+        setSelected(match);
+      }, [files, current]);
+
+      React.useEffect(() => {
+        if (selected === null) return;
+        document.querySelector('.dsh-shelves-files-cell[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+      }, [selected]);
 
       React.useEffect(() => {
         const controller = new AbortController();
-        setScan({ status: 'loading', files: [], error: null });
-        scanWorkspaceImages(listFiles, sessionId, workspacePath, controller.signal).then(
-          (result) => {
-            if (!controller.signal.aborted) setScan({ status: 'ready', files: result.files, error: result.error });
-          },
-          (error) => {
-            if (controller.signal.aborted) return;
-            setScan({ status: 'failed', files: [], error: error instanceof Error ? error.message : String(error) });
-          },
-        );
-        return () => controller.abort();
-      }, [sessionId, workspacePath, listFiles]);
-
-      React.useEffect(() => {
-        if (selected === null) return undefined;
-        let alive = true;
-        setPreview({ status: 'loading' });
-        const key = `${workspaceId}:${selected.path}`;
-        iconUrlFor(key, () => loadIconUrl(readFileBytes, sessionId, `${workspacePath}/${selected.path}`)).then((url) => {
-          if (!alive) return;
-          setPreview(url === null ? { status: 'failed' } : { status: 'ready', url });
+        setPhase({ status: 'scanning', done: 0, total: 0, error: null });
+        setFiles([]);
+        (async () => {
+          const scan = await scanWorkspaceImages(listFiles, sessionId, workspacePath, controller.signal);
+          if (controller.signal.aborted) return;
+          setPhase({ status: 'checking', done: 0, total: scan.files.length, error: scan.error });
+          const square = await squareImages(
+            readFileBytes,
+            sessionId,
+            workspacePath,
+            scan.files,
+            controller.signal,
+            (done) => {
+              if (!controller.signal.aborted) setPhase({ status: 'checking', done, total: scan.files.length, error: null });
+            },
+          );
+          if (controller.signal.aborted) return;
+          setFiles(square);
+          setPhase({
+            status: 'ready',
+            done: square.length,
+            total: scan.files.length,
+            error: square.length === 0 ? scan.error : null,
+          });
+        })().catch((error) => {
+          if (controller.signal.aborted) return;
+          setPhase({
+            status: 'failed',
+            done: 0,
+            total: 0,
+            error: error instanceof Error ? error.message : String(error),
+          });
         });
-        return () => {
-          alive = false;
-        };
-      }, [selected, workspaceId, workspacePath, sessionId, readFileBytes]);
+        return () => controller.abort();
+      }, [sessionId, workspacePath, listFiles, readFileBytes]);
 
       React.useEffect(() => {
         const onKeyDown = (event) => {
@@ -694,55 +894,51 @@ window.__ModuleLoader__.load({
       }, [onClose]);
 
       const needle = query.trim().toLowerCase();
-      const visible = needle === '' ? scan.files : scan.files.filter((file) => file.path.toLowerCase().includes(needle));
+      const visible = needle === '' ? files : files.filter((file) => file.path.toLowerCase().includes(needle));
+      const basenames = new Map();
+      for (const file of visible) {
+        const base = file.path.slice(file.path.lastIndexOf('/') + 1);
+        basenames.set(base, (basenames.get(base) ?? 0) + 1);
+      }
 
-      const rows = [];
-      if (scan.status === 'loading') {
-        rows.push(h('div', { key: 'loading', className: 'dsh-shelves-files-empty' }, t('file.scanning')));
+      let status;
+      if (phase.status === 'scanning') status = t('file.scanning');
+      else if (phase.status === 'checking') status = t('file.checking', { done: phase.done, total: phase.total });
+      else if (phase.status === 'failed') status = phase.error ?? t('file.empty');
+      else status = t('file.count', { n: files.length });
+
+      let content;
+      if (phase.status === 'scanning' || phase.status === 'checking') {
+        content = h('div', { className: 'dsh-shelves-files-empty' }, status);
       } else if (visible.length === 0) {
-        const empty = scan.files.length > 0 ? t('file.noMatch') : (scan.error ?? t('file.empty'));
-        rows.push(h('div', { key: 'empty', className: 'dsh-shelves-files-empty' }, empty));
+        const empty = phase.status === 'failed' ? status : files.length > 0 ? t('file.noMatch') : (phase.error ?? t('file.empty'));
+        content = h('div', { className: 'dsh-shelves-files-empty' }, empty);
       } else {
-        for (const file of visible) {
-          const slash = file.path.lastIndexOf('/');
-          const dir = slash < 0 ? '' : file.path.slice(0, slash + 1);
-          rows.push(
+        content = h(
+          'div',
+          { className: 'dsh-shelves-files-grid' },
+          visible.map((file) =>
             h(
               'button',
               {
                 key: file.path,
                 type: 'button',
-                className: 'dsh-shelves-files-row',
+                className: 'dsh-shelves-files-cell',
                 'aria-selected': selected?.path === file.path ? 'true' : undefined,
-                title: file.path,
+                title: `${file.path} · ${file.width}×${file.height}`,
                 onClick: () => setSelected(file),
               },
-              h('span', { className: 'dsh-shelves-files-glyph' }, glyph('image', 14)),
-              h(
-                'span',
-                { className: 'dsh-shelves-files-row-name' },
-                dir === '' ? null : h('span', { className: 'dsh-shelves-files-row-dir' }, dir),
-                h('span', { className: 'dsh-shelves-files-row-file' }, file.path.slice(slash + 1)),
-              ),
-              h('span', { className: 'dsh-shelves-files-row-size' }, formatBytes(file.size)),
+              h(FileThumb, { workspaceId, workspacePath, sessionId, file, readFileBytes }),
+              h('span', { className: 'dsh-shelves-files-cell-name' }, labelOf(file, basenames)),
             ),
-          );
-        }
+          ),
+        );
       }
 
-      let previewContent;
-      if (selected === null) {
-        previewContent = h('span', { className: 'dsh-shelves-files-preview-name' }, t('file.hint'));
-      } else if (preview === null || preview.status === 'loading') {
-        previewContent = h('span', { className: 'dsh-shelves-files-preview-name' }, t('file.loading'));
-      } else if (preview.status === 'failed') {
-        previewContent = h('span', { className: 'dsh-shelves-files-preview-name' }, t('file.failed'));
-      } else {
-        previewContent = [
-          h('img', { key: 'image', src: preview.url, alt: '' }),
-          h('span', { key: 'name', className: 'dsh-shelves-files-preview-name' }, selected.path),
-        ];
-      }
+      const selectedLabel =
+        selected === null
+          ? t('file.hint')
+          : `${selected.path} · ${selected.width}×${selected.height}`;
 
       return h(
         'div',
@@ -763,44 +959,34 @@ window.__ModuleLoader__.load({
           ),
           h(
             'div',
-            { className: 'dsh-shelves-files-body' },
+            { className: 'dsh-shelves-files-toolbar' },
             h(
-              'div',
-              { className: 'dsh-shelves-files-list' },
-              h(
-                'div',
-                { className: 'dsh-shelves-files-search' },
-                h('span', { className: 'dsh-shelves-files-glyph' }, glyph('search', 13)),
-                h('input', {
-                  autoFocus: true,
-                  type: 'text',
-                  value: query,
-                  placeholder: t('file.search'),
-                  'aria-label': t('file.search'),
-                  onChange: (event) => setQuery(event.target.value),
-                }),
-              ),
-              h('div', { className: 'dsh-shelves-files-rows' }, rows),
+              'span',
+              { className: 'dsh-shelves-files-search' },
+              h('span', { className: 'dsh-shelves-files-glyph' }, glyph('search', 13)),
+              h('input', {
+                autoFocus: true,
+                type: 'text',
+                value: query,
+                placeholder: t('file.search'),
+                'aria-label': t('file.search'),
+                onChange: (event) => setQuery(event.target.value),
+              }),
             ),
-            h('div', { className: 'dsh-shelves-files-preview' }, previewContent),
+            h('span', { className: 'dsh-shelves-files-status' }, status),
           ),
+          h('div', { className: 'dsh-shelves-files-rows' }, content),
           h(
             'div',
             { className: 'dsh-shelves-files-foot' },
-            h(
-              'span',
-              { className: 'dsh-shelves-files-count' },
-              scan.status === 'loading'
-                ? t('file.scanning')
-                : t('file.count', { n: visible.length }),
-            ),
+            h('span', { className: 'dsh-shelves-files-selected', title: selected === null ? undefined : selected.path }, selectedLabel),
             h('button', { type: 'button', className: 'dsh-shelves-files-btn', onClick: onClose }, t('file.cancel')),
             h(
               'button',
               {
                 type: 'button',
                 className: 'dsh-shelves-files-btn dsh-shelves-files-btn-primary',
-                disabled: selected === null || preview?.status !== 'ready',
+                disabled: selected === null,
                 onClick: () => {
                   if (selected !== null) onPick(selected.path);
                 },
@@ -889,11 +1075,13 @@ window.__ModuleLoader__.load({
       };
 
       const openFilePicker = () => {
+        const current = icons[iconPicker.workspaceId]?.file;
         setFilePicker({
           workspaceId: iconPicker.workspaceId,
           workspacePath: iconPicker.workspacePath,
           sessionId: iconPicker.sessionId,
           name: iconPicker.name,
+          current: typeof current === 'string' ? current : '',
         });
         setIconPicker(null);
       };
@@ -1383,8 +1571,8 @@ window.__ModuleLoader__.load({
                 unarchiveSession: (id) => ctx.uiWorkspace.unarchiveSession(id),
                 getOpenTabs: () => ctx.get('sidebarRight')?.openTabs,
                 listFiles: (sessionId, path, signal) => ctx.remote.workspaceFiles.list(sessionId, path, signal),
-                readFileBytes: (sessionId, path, signal) =>
-                  ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length: MAX_ICON_BYTES } }, signal),
+                readFileBytes: (sessionId, path, length, signal) =>
+                  ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length } }, signal),
               }),
             },
             Shelves,
