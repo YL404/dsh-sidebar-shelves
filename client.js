@@ -13,6 +13,9 @@
  * session leaves the list only when the user archives it. Pinning is local and
  * independent of archiving.
  *
+ * A card's context menu mirrors the native Session menu where the running DSH
+ * offers the same verbs: pin, rename, fork, copy the Session id, and archive.
+ *
  * The composer's workspace menu is the second occupant: it draws each Workspace
  * with the same project tile and orders them by their newest session, so the
  * sidebar and the picker share one icon set and one recency rule. The third is
@@ -23,7 +26,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-sidebar-shelves',
   factory(require) {
     const React = require('react');
-    const { Button, IconPlusOutlineRegular, Menu, Modal } = require('@deepseek-ai/dsh-client-ui-primitives');
+    const { Button, IconPlusOutlineRegular, Menu, Modal, Toast, writeClipboard } = require('@deepseek-ai/dsh-client-ui-primitives');
     const h = React.createElement;
     const NS = 'dsh.sidebarShelves';
 
@@ -100,6 +103,16 @@ window.__ModuleLoader__.load({
       'action.unarchive': '取消归档',
       'action.pin': '置顶会话',
       'action.unpin': '取消置顶',
+      'action.rename': '重命名…',
+      'action.fork': '分叉会话',
+      'action.copyId': '复制会话 ID',
+      'action.copyIdDone': '已复制会话 ID',
+      'action.copyIdFailed': '复制会话 ID 失败',
+      'action.forkFailed': '无法分叉会话',
+      'rename.title': '重命名会话',
+      'rename.confirm': '确定',
+      'rename.cancel': '取消',
+      'rename.empty': '标题不能为空',
       'menu.addWorkspace': '添加工作区…',
       'menu.addFailed': '无法添加工作区',
       'menu.addRetry': '重试',
@@ -145,6 +158,16 @@ window.__ModuleLoader__.load({
       'action.unarchive': 'Unarchive session',
       'action.pin': 'Pin session',
       'action.unpin': 'Unpin session',
+      'action.rename': 'Rename…',
+      'action.fork': 'Fork session',
+      'action.copyId': 'Copy Session ID',
+      'action.copyIdDone': 'Session ID copied',
+      'action.copyIdFailed': 'Could not copy Session ID',
+      'action.forkFailed': 'Could not fork session',
+      'rename.title': 'Rename session',
+      'rename.confirm': 'Rename',
+      'rename.cancel': 'Cancel',
+      'rename.empty': 'Title cannot be empty',
       'menu.addWorkspace': 'Add workspace…',
       'menu.addFailed': 'Could not add workspace',
       'menu.addRetry': 'Try again',
@@ -307,6 +330,10 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-files-btn:disabled{opacity:.45;cursor:default}',
       '.dsh-shelves-files-btn-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base)}',
       '.dsh-shelves-files-btn-primary:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 86%,var(--dsw-alias-bg-base))}',
+      '.dsh-shelves-rename{display:flex;flex-direction:column;gap:6px}',
+      '.dsh-shelves-rename input{box-sizing:border-box;width:100%;height:34px;padding:0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;outline:none}',
+      '.dsh-shelves-rename input:focus{border-color:var(--dsw-alias-brand-primary)}',
+      '.dsh-shelves-rename-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}',
       '.dsh-shelves-row:hover .dsh-shelves-time,.dsh-shelves-row:focus-within .dsh-shelves-time{opacity:0}',
       '.dsh-shelves-empty{padding:16px 10px;color:var(--dsw-alias-label-secondary);font-size:12px}',
       '.dsh-shelves-rail{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:36px;height:36px;margin:0 auto;border:0;border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;font-variant-numeric:tabular-nums;cursor:pointer}',
@@ -335,6 +362,9 @@ window.__ModuleLoader__.load({
       gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z',
       pin: 'M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z',
       unarchive: 'M3.5 5.5h17v3.5h-17zM5.5 9v9.5h13V9M12 15.5V10M9.5 12.5l2.5-2.5 2.5 2.5',
+      rename: 'M4 20h4l9.5-9.5a2.1 2.1 0 0 0-3-3L5 17v3zM13.5 6.5l4 4',
+      fork: 'M6 4v9M6 19a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18 9c0 4.5-4 5-8 5.5',
+      copy: 'M9 9h10v10H9zM5 15V5h10',
       image: 'M3.5 5.5h17v13h-17zM7 14.5l3.5-3.5 3 3 2-2 2 2M8 9.5h.01',
       search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5L20 20',
     };
@@ -1368,7 +1398,7 @@ window.__ModuleLoader__.load({
     }
 
     function Shelves(props) {
-      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, openSession, archiveSession, unarchiveSession, getOpenTabs, listFiles, readFileBytes, t } = props;
+      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, openSession, archiveSession, unarchiveSession, forkSession, renameSession, getOpenTabs, listFiles, readFileBytes, t } = props;
       const list = useSessions((state) => state) ?? EMPTY_LIST;
       const statuses = useSessionStatus((state) => state);
       const items = useWorkspaces((state) => state.items);
@@ -1399,12 +1429,32 @@ window.__ModuleLoader__.load({
       const [archivedOpen, setArchivedOpen] = React.useState(false);
       const [iconPicker, setIconPicker] = React.useState(null);
       const [filePicker, setFilePicker] = React.useState(null);
+      // One card menu at a time, anchored at the gesture point. `row` is the
+      // occurrence snapshot; the element restores focus after a keyboard open.
+      const [cardMenu, setCardMenu] = React.useState(null);
+      const cardMenuRef = React.useRef(null);
+      cardMenuRef.current = cardMenu;
+      // A rename request owns its draft so a rejected write keeps the dialog.
+      const [rename, setRename] = React.useState(null);
+      const [toast, setToast] = React.useState(null);
       const [clock, bumpClock] = React.useReducer((n) => n + 1, 0);
+      // The pointer point is a zero-size rect; the Menu primitive clamps it to
+      // the viewport and follows scroll and resize while open.
+      const cardMenuRect = React.useCallback(() => {
+        const menu = cardMenuRef.current;
+        if (menu === null) return null;
+        return { left: menu.x, right: menu.x, top: menu.y, bottom: menu.y, width: 0, height: 0 };
+      }, []);
 
       React.useEffect(() => {
         const id = window.setInterval(bumpClock, 60000);
         return () => window.clearInterval(id);
       }, []);
+
+      // The rail renders no cards, so a pending menu must not survive a collapse.
+      React.useEffect(() => {
+        if (!wide) setCardMenu(null);
+      }, [wide]);
 
       const updateSettings = (patch) =>
         setSettings((prev) => {
@@ -1633,6 +1683,87 @@ window.__ModuleLoader__.load({
         updatePinned(next);
       };
 
+      const showToast = (text, tone) => setToast({ text, tone, key: Date.now() });
+
+      // The card menu mirrors the native Session menu: same verbs, same order.
+      // It never opens the Session, so a background row keeps the selection.
+      const openCardMenu = (row, point, keyboard, element) => {
+        if (row.blank) return;
+        setCardMenu({ row, x: point.x, y: point.y, keyboard, element });
+      };
+
+      const closeCardMenu = () => {
+        const menu = cardMenuRef.current;
+        setCardMenu(null);
+        // A keyboard menu owns focus while open; hand it back to its row.
+        if (menu?.keyboard) {
+          Promise.resolve().then(() => {
+            if (menu.element?.isConnected) menu.element.focus();
+          });
+        }
+      };
+
+      const cardMenuItems = (row) => {
+        const items = [];
+        if (!row.archived) {
+          items.push({ id: 'pin', label: row.pinned ? t('action.unpin') : t('action.pin'), icon: glyph('pin', 16) });
+        }
+        items.push({ id: 'rename', label: t('action.rename'), icon: glyph('rename', 16) });
+        items.push({ id: 'fork', label: t('action.fork'), icon: glyph('fork', 16) });
+        items.push({ type: 'separator', id: 'card-menu-copy' });
+        items.push({ id: 'copyId', label: t('action.copyId'), icon: glyph('copy', 16) });
+        items.push({ type: 'separator', id: 'card-menu-archive' });
+        items.push({
+          id: 'archive',
+          label: row.archived ? t('action.unarchive') : t('action.archive'),
+          icon: glyph(row.archived ? 'unarchive' : 'archive', 16),
+        });
+        return items;
+      };
+
+      const selectCardMenuItem = (id) => {
+        const menu = cardMenuRef.current;
+        if (menu === null) return;
+        closeCardMenu();
+        // Read the live row: pin and archive state may have moved since opening.
+        const row = rows.find((candidate) => candidate.id === menu.row.id) ?? menu.row;
+        if (id === 'pin') togglePin(row);
+        else if (id === 'rename') setRename({ id: row.id, draft: row.title || '', busy: false, error: null });
+        else if (id === 'fork') {
+          Promise.resolve()
+            .then(() => forkSession(row.id))
+            .catch((reason) => {
+              console.warn('sidebar-shelves: fork failed', reason);
+              showToast(t('action.forkFailed'), 'error');
+            });
+        } else if (id === 'copyId') {
+          Promise.resolve()
+            .then(() => writeClipboard(row.id))
+            .then((ok) => showToast(ok ? t('action.copyIdDone') : t('action.copyIdFailed'), ok ? 'success' : 'error'))
+            .catch(() => showToast(t('action.copyIdFailed'), 'error'));
+        } else if (id === 'archive') toggleArchive(row);
+      };
+
+      const submitRename = () => {
+        const target = rename;
+        if (target === null || target.busy) return;
+        const title = target.draft.trim();
+        if (title === '') {
+          setRename({ ...target, error: t('rename.empty') });
+          return;
+        }
+        setRename({ ...target, busy: true, error: null });
+        Promise.resolve()
+          .then(() => renameSession(target.id, title))
+          .then(() => setRename(null))
+          .catch((reason) => {
+            const message = reason instanceof Error ? reason.message : String(reason);
+            setRename((current) =>
+              current !== null && current.id === target.id ? { ...current, busy: false, error: message } : current,
+            );
+          });
+      };
+
       // The Workspace's tile: its chosen image, an emoji, or a two-letter monogram
       // in its own color. Clicking it opens the picker; an ungrouped Session has none.
       const renderProjectIcon = (row) => {
@@ -1693,9 +1824,21 @@ window.__ModuleLoader__.load({
             'aria-disabled': row.archived ? 'true' : undefined,
             title,
             onClick: () => open(row),
+            onContextMenu: (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openCardMenu(row, { x: event.clientX, y: event.clientY }, false, event.currentTarget);
+            },
             onKeyDown: (event) => {
               // Keys pressed inside the row's own buttons belong to those buttons.
               if (event.target !== event.currentTarget) return;
+              // The platform context-menu gesture opens the same menu as the pointer.
+              if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+                openCardMenu(row, { x: rect.left + 10, y: rect.bottom - 6 }, true, event.currentTarget);
+                return;
+              }
               if (event.key !== 'Enter' && event.key !== ' ') return;
               event.preventDefault();
               open(row);
@@ -1945,6 +2088,66 @@ window.__ModuleLoader__.load({
                   setFilePicker(null);
                 },
               }),
+          h(Menu, {
+            open: cardMenu !== null,
+            anchor: null,
+            items: cardMenu === null ? [] : cardMenuItems(cardMenu.row),
+            onSelect: selectCardMenuItem,
+            onClose: closeCardMenu,
+            side: 'bottom',
+            portal: true,
+            autoFocus: cardMenu?.keyboard === true,
+            getAnchorRect: cardMenuRect,
+          }),
+          toast === null
+            ? null
+            : h(Toast, {
+                key: toast.key,
+                text: toast.text,
+                tone: toast.tone,
+                onDone: () => setToast(null),
+              }),
+          h(
+            Modal,
+            {
+              open: rename !== null,
+              onClose: () => {
+                if (rename === null || rename.busy) return;
+                setRename(null);
+              },
+              closeLabel: t('rename.cancel'),
+              title: t('rename.title'),
+              footer: [
+                h(Button, { key: 'cancel', onClick: () => (rename?.busy ? undefined : setRename(null)) }, t('rename.cancel')),
+                h(
+                  Button,
+                  { key: 'confirm', variant: 'primary', disabled: rename?.busy === true, onClick: submitRename },
+                  t('rename.confirm'),
+                ),
+              ],
+            },
+            h(
+              'div',
+              { className: 'dsh-shelves-rename' },
+              h('input', {
+                type: 'text',
+                value: rename?.draft ?? '',
+                placeholder: t('session.untitled'),
+                autoFocus: true,
+                'aria-label': t('rename.title'),
+                onChange: (event) => {
+                  const value = event.target.value;
+                  setRename((current) => (current === null ? current : { ...current, draft: value, error: null }));
+                },
+                onKeyDown: (event) => {
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  submitRename();
+                },
+              }),
+              rename?.error ? h('div', { className: 'dsh-shelves-rename-error', role: 'alert' }, rename.error) : null,
+            ),
+          ),
         ),
       );
     }
@@ -2060,7 +2263,7 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale', 'uiWorkspace', 'remote', 'remote.workspaceFiles', 'workspaces'],
+      inject: ['slots', 'locale', 'uiWorkspace', 'remote', 'remote.workspaceFiles', 'workspaces', 'sessions'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'sidebar-shelves: dictionaries');
         const readFileBytes = (sessionId, path, length, signal) =>
@@ -2075,6 +2278,14 @@ window.__ModuleLoader__.load({
                 openSession: (id) => ctx.uiWorkspace.openSession(id),
                 archiveSession: (id) => ctx.uiWorkspace.archiveSession(id),
                 unarchiveSession: (id) => ctx.uiWorkspace.unarchiveSession(id),
+                // Same Host paths the native Session menu uses.
+                forkSession: (id) => ctx.uiWorkspace.forkSession(id, undefined, { allowMigration: false }),
+                renameSession: async (id, title) => {
+                  const result = await ctx.sessions.using(id, { source: 'workspaceOperation' }, (reference) =>
+                    reference.binding.session.rename(title),
+                  );
+                  if (!result.ok) throw new Error(result.error.message);
+                },
                 getOpenTabs: () => ctx.get('sidebarRight')?.openTabs,
                 listFiles: (sessionId, path, signal) => ctx.remote.workspaceFiles.list(sessionId, path, signal),
                 readFileBytes,
