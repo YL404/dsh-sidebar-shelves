@@ -1,14 +1,27 @@
 {
-  "name": "@local/dsh-sidebar-shelves",
+  "name": "dsh-sidebar-shelves",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "Two-line session cards for the dsh sidebar: per-workspace project icons (monogram, emoji, square image, or .icon package), pinning, manual or timed archiving, status markers, running background-job and subagent counts, and recency sorting; the composer's workspace menu reuses the same tiles and recency order",
+  "description": "Two-line session cards for the DSH sidebar: per-workspace project icons, pinning, archiving, status markers, job counts, and recency sorting",
+  "license": "MIT",
+  "author": "Han (https://github.com/YL404)",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "sidebar",
+    "session-list"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
   },
   "files": [
     "index.js",

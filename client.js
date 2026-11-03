@@ -20,12 +20,12 @@
  * Workspace tile just before its title.
  */
 window.__ModuleLoader__.load({
-  id: '@local/dsh-sidebar-shelves',
+  id: 'dsh-sidebar-shelves',
   factory(require) {
     const React = require('react');
     const { Button, IconPlusOutlineRegular, Menu, Modal } = require('@deepseek-ai/dsh-client-ui-primitives');
     const h = React.createElement;
-    const NS = 'local.sidebarShelves';
+    const NS = 'dsh.sidebarShelves';
 
     const ADD_WORKSPACE = '::add-workspace';
     const DAY_MS = 86400000;
