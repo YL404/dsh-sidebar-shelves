@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Three-line session cards for the dsh sidebar: pinning, manual or timed archiving, status markers, and recency sorting",
+  "description": "Two-line session cards for the dsh sidebar: pinning, manual or timed archiving, status markers, and recency sorting",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",

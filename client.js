@@ -4,8 +4,8 @@
  *
  * Unarchived sessions flow from the top of the column, newest input first with
  * pinned ones leading; the Archived shelf is pushed to the bottom. Each session
- * is a three-line card — title with its relative time, a status marker, then
- * the pin, Workspace, and terminal markers.
+ * is a two-line card — a status icon in a fixed slot, the title, and its
+ * relative time, then the pin, Workspace, and terminal markers.
  *
  * Archiving uses the Host's own durable state, never a derived status: a
  * session leaves the list only when the user archives it. Pinning is local and
@@ -92,19 +92,18 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-select>select{appearance:none;-webkit-appearance:none;height:24px;padding:0 20px 0 8px;border:0;border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}',
       '.dsh-shelves-select>select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dsh-shelves-select-chevron{position:absolute;right:5px;display:inline-flex;pointer-events:none;color:var(--dsw-alias-label-secondary);transform:rotate(90deg)}',
-      '.dsh-shelves-row{position:relative;display:flex;box-sizing:border-box;flex-direction:column;justify-content:center;width:100%;min-height:70px;padding:5px 10px;border-radius:8px;color:var(--dsw-alias-label-primary);font-size:14px;text-align:left;cursor:pointer;user-select:none}',
+      '.dsh-shelves-row{position:relative;display:flex;box-sizing:border-box;flex-direction:column;justify-content:center;width:100%;min-height:56px;padding:5px 10px;border-radius:8px;color:var(--dsw-alias-label-primary);font-size:14px;text-align:left;cursor:pointer;user-select:none}',
       '.dsh-shelves-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
       '.dsh-shelves-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
       '.dsh-shelves-row-selected{background:var(--dsw-alias-bg-layer-2)}',
-      '.dsh-shelves-titleline{display:flex;align-items:center;gap:8px;min-width:0;min-height:22px}',
+      '.dsh-shelves-titleline{display:flex;align-items:center;gap:6px;min-width:0;min-height:22px}',
       '.dsh-shelves-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}',
       '.dsh-shelves-row-archived .dsh-shelves-title{font-weight:400;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-metaline{display:flex;align-items:center;gap:6px;min-width:0;min-height:16px;margin-top:2px;font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-ws{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dsh-shelves-term{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-state-business-primary)}',
       '.dsh-shelves-time{margin-left:auto;flex:none;font-size:12px;font-variant-numeric:tabular-nums;opacity:.7;transition:opacity .12s ease}',
-      '.dsh-shelves-statusline{display:flex;align-items:center;min-height:18px;margin-top:2px;font-size:12px;font-weight:500}',
-      '.dsh-shelves-status{display:inline-flex;flex:none;align-items:center;gap:4px;font-size:12px;font-weight:500;white-space:nowrap;transition:opacity .12s ease}',
+      '.dsh-shelves-status{display:inline-flex;align-items:center;justify-content:center;transition:opacity .12s ease}',
       '.dsh-shelves-status-working{color:var(--dsw-alias-brand-primary)}',
       '.dsh-shelves-status-warn{color:var(--dsw-alias-state-warn-primary)}',
       '.dsh-shelves-status-done{color:var(--dsw-alias-state-success-primary)}',
@@ -514,20 +513,21 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { className: 'dsh-shelves-titleline' },
-            h('span', { className: 'dsh-shelves-title' }, title),
-            time === '' ? null : h('span', { className: 'dsh-shelves-time' }, time),
-          ),
-          h(
-            'span',
-            { className: 'dsh-shelves-statusline' },
             status === undefined
               ? null
               : h(
                   'span',
-                  { key: status.key, className: `dsh-shelves-status dsh-shelves-status-${status.tone} dsh-shelves-anim` },
+                  {
+                    key: status.key,
+                    className: `dsh-shelves-status dsh-shelves-status-${status.tone} dsh-shelves-anim`,
+                    role: 'img',
+                    'aria-label': status.label,
+                    title: status.label,
+                  },
                   glyph(status.key, 13),
-                  status.label,
                 ),
+            h('span', { className: 'dsh-shelves-title' }, title),
+            time === '' ? null : h('span', { className: 'dsh-shelves-time' }, time),
           ),
           h(
             'span',
