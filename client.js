@@ -455,25 +455,66 @@ window.__ModuleLoader__.load({
       return file.endsWith('.icon') ? `${workspaceId}:${file}:${appearance}` : `${workspaceId}:${file}`;
     }
 
+    // The system's dark canvas material, sampled from an ictool render: a near-black
+    // vertical shade rather than the package's custom fill.
+    const DARK_CANVAS_TOP = '#2a2a2c';
+    const DARK_CANVAS_BOTTOM = '#101011';
+
     function parseIconColor(value) {
       if (typeof value !== 'string') return null;
       const colon = value.indexOf(':');
       if (colon < 0) return null;
       const space = value.slice(0, colon);
-      if (space !== 'srgb' && space !== 'display-p3') return null;
       const parts = value.slice(colon + 1).split(',').map(Number);
-      if (parts.length < 3 || parts.some((part) => !Number.isFinite(part))) return null;
+      if (parts.some((part) => !Number.isFinite(part))) return null;
+      if (space === 'gray' || space === 'extended-gray') {
+        const [level, alpha = 1] = parts;
+        const channel = Math.round(Math.min(1, Math.max(0, level)) * 255);
+        return `rgba(${channel}, ${channel}, ${channel}, ${alpha})`;
+      }
+      if (space !== 'srgb' && space !== 'display-p3' && space !== 'extended-srgb') return null;
+      if (parts.length < 3) return null;
       const [red, green, blue, alpha = 1] = parts;
-      return `rgba(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}, ${alpha})`;
+      const channel = (part) => Math.round(Math.min(1, Math.max(0, part)) * 255);
+      return `rgba(${channel(red)}, ${channel(green)}, ${channel(blue)}, ${alpha})`;
     }
 
-    function iconFillStyle(context, fill, size) {
-      if (fill === null || typeof fill !== 'object') return null;
-      if (typeof fill.solid === 'string') return parseIconColor(fill.solid);
-      if (!Array.isArray(fill['linear-gradient'])) return null;
-      const stops = fill['linear-gradient'].map(parseIconColor);
+    function darkCanvasFill(context, size) {
+      const gradient = context.createLinearGradient(0, 0, 0, size);
+      gradient.addColorStop(0, DARK_CANVAS_TOP);
+      gradient.addColorStop(1, DARK_CANVAS_BOTTOM);
+      return gradient;
+    }
+
+    // The base fill describes the Default appearance. A dark appearance without its
+    // own specialization falls back to the system's automatic fill, which is why a
+    // blue package renders black in dark mode.
+    function resolveCanvasFill(spec, appearance) {
+      const entries = Array.isArray(spec['fill-specializations']) ? spec['fill-specializations'] : [];
+      let value = spec.fill ?? 'automatic';
+      for (const entry of entries) {
+        if (entry === null || typeof entry !== 'object') continue;
+        if (entry.appearance !== undefined && entry.appearance !== appearance) continue;
+        value = entry.value;
+      }
+      if (appearance === 'dark' && !entries.some((entry) => entry?.appearance === 'dark')) return 'automatic';
+      return value;
+    }
+
+    function canvasFillStyle(context, value, size, appearance) {
+      if (typeof value === 'string') {
+        if (value === 'system-light') return '#ffffff';
+        if (value === 'system-dark') return darkCanvasFill(context, size);
+        // 'automatic' and 'none' follow the system appearance.
+        return appearance === 'dark' ? darkCanvasFill(context, size) : '#ffffff';
+      }
+      if (value === null || typeof value !== 'object') return null;
+      if (typeof value.solid === 'string') return parseIconColor(value.solid);
+      if (typeof value['automatic-gradient'] === 'string') return parseIconColor(value['automatic-gradient']);
+      if (!Array.isArray(value['linear-gradient'])) return null;
+      const stops = value['linear-gradient'].map(parseIconColor);
       if (stops.length < 2 || stops.some((stop) => stop === null)) return null;
-      const orientation = fill.orientation ?? {};
+      const orientation = value.orientation ?? {};
       const gradient = context.createLinearGradient(
         (orientation.start?.x ?? 0.5) * size,
         (orientation.start?.y ?? 0) * size,
@@ -526,7 +567,7 @@ window.__ModuleLoader__.load({
       canvas.height = ICON_CANVAS;
       const context = canvas.getContext('2d');
       if (context === null) return null;
-      const background = iconFillStyle(context, spec.fill, ICON_CANVAS);
+      const background = canvasFillStyle(context, resolveCanvasFill(spec, appearance), ICON_CANVAS, appearance);
       if (background !== null) {
         context.fillStyle = background;
         context.fillRect(0, 0, ICON_CANVAS, ICON_CANVAS);
