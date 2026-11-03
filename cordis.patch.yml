@@ -1,0 +1,3 @@
+- insert:
+    - id: sidebar-shelves
+      name: '@local/dsh-sidebar-shelves'
