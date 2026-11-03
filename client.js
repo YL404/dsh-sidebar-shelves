@@ -5,7 +5,9 @@
  * Unarchived sessions flow from the top of the column, newest input first with
  * pinned ones leading; the Archived shelf is pushed to the bottom. Each session
  * is a two-line card — a status icon in a fixed slot, the title, and its
- * relative time, then the pin, Workspace, and terminal markers.
+ * relative time, then the Workspace's project tile, the pin, its name, and the
+ * terminal marker. The tile follows t3code: a name-derived monogram and color,
+ * replaced by the emoji or color the user picks for that Workspace.
  *
  * Archiving uses the Host's own durable state, never a derived status: a
  * session leaves the list only when the user archives it. Pinning is local and
@@ -22,7 +24,37 @@ window.__ModuleLoader__.load({
     const AUTO_CLEAR_MS = 2500;
     const SETTINGS_KEY = 'dsh:sidebar-shelves:settings';
     const PINNED_KEY = 'dsh:sidebar-shelves:pinned';
+    const ICONS_KEY = 'dsh:sidebar-shelves:icons';
     const AUTO_ARCHIVE_CHOICES = [3, 7, 14, 30];
+
+    // t3code's project palette: the same name always lands on the same slot, so a
+    // project keeps its color without anything being stored. Light mode uses the
+    // 600 step and dark mode the 400 step, matching t3code's own Tailwind classes.
+    const PROJECT_COLORS = [
+      ['gray', '#4b5563', '#9ca3af'],
+      ['red', '#dc2626', '#f87171'],
+      ['orange', '#ea580c', '#fb923c'],
+      ['amber', '#d97706', '#fbbf24'],
+      ['yellow', '#ca8a04', '#facc15'],
+      ['lime', '#65a30d', '#a3e635'],
+      ['green', '#16a34a', '#4ade80'],
+      ['emerald', '#059669', '#34d399'],
+      ['teal', '#0d9488', '#2dd4bf'],
+      ['cyan', '#0891b2', '#22d3ee'],
+      ['sky', '#0284c7', '#38bdf8'],
+      ['blue', '#2563eb', '#60a5fa'],
+      ['indigo', '#4f46e5', '#818cf8'],
+      ['violet', '#7c3aed', '#a78bfa'],
+      ['purple', '#9333ea', '#c084fc'],
+      ['fuchsia', '#c026d3', '#e879f9'],
+      ['pink', '#db2777', '#f472b6'],
+      ['rose', '#e11d48', '#fb7185'],
+    ];
+    const PROJECT_EMOJIS = [
+      '💻', '🛠️', '🚀', '🤖', '✨', '⚡', '🌐', '📱',
+      '🖥️', '⌨️', '⚙️', '🗄️', '☁️', '📦', '📚', '🧪',
+      '🔒', '🎮', '🎵', '🎬', '🖼️', '🛍️', '🔥', '💡',
+    ];
 
     const zh = {
       'shelf.archived': '已归档',
@@ -38,6 +70,8 @@ window.__ModuleLoader__.load({
       'action.unarchive': '取消归档',
       'action.pin': '置顶会话',
       'action.unpin': '取消置顶',
+      'icon.edit': '更改项目图标',
+      'icon.auto': '自动',
       'status.working': '工作中',
       'status.approval': '待审批',
       'status.planReview': '待确认',
@@ -60,6 +94,8 @@ window.__ModuleLoader__.load({
       'action.unarchive': 'Unarchive session',
       'action.pin': 'Pin session',
       'action.unpin': 'Unpin session',
+      'icon.edit': 'Change project icon',
+      'icon.auto': 'Auto',
       'status.working': 'Working',
       'status.approval': 'Approval',
       'status.planReview': 'Plan review',
@@ -117,6 +153,32 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-action:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
       '.dsh-shelves-action-pinned{color:var(--dsw-alias-state-business-primary)}',
       '.dsh-shelves-pin{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-state-business-primary)}',
+      '.dsh-shelves-proj{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:14px;height:14px;margin:0;padding:0;border:0;border-radius:4px;background:color-mix(in srgb,var(--dsh-pi) 14%,transparent);color:var(--dsh-pi);font:inherit;cursor:pointer}',
+      '.dsh-shelves-proj:hover{background:color-mix(in srgb,var(--dsh-pi) 26%,transparent)}',
+      '.dsh-shelves-proj:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dsh-shelves-proj svg{display:block;width:14px;height:14px}',
+      '.dsh-shelves-proj text{font-family:var(--dsh-font-family-code,ui-monospace,monospace)}',
+      '.dsh-shelves-proj-emoji{font-size:11px;line-height:1}',
+      ...PROJECT_COLORS.flatMap(([name, light, dark]) => [
+        `.dsh-shelves-pi-${name}{--dsh-pi:${light}}`,
+        `body[data-ds-dark-theme] .dsh-shelves-pi-${name}{--dsh-pi:${dark}}`,
+      ]),
+      '.dsh-shelves-iconpicker{position:fixed;z-index:60;display:flex;flex-direction:column;gap:6px;box-sizing:border-box;width:200px;padding:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-overlay);box-shadow:0 10px 28px #00000033}',
+      '.dsh-shelves-iconpicker-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-iconpicker-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-shelves-iconpicker-auto{flex:none;height:20px;padding:0 6px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-brand-primary);font:inherit;font-size:11px;cursor:pointer}',
+      '.dsh-shelves-iconpicker-auto:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-iconpicker-auto:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dsh-shelves-swatches{display:grid;grid-template-columns:repeat(9,16px);justify-content:space-between;gap:4px 0}',
+      '.dsh-shelves-swatch{width:16px;height:16px;padding:0;border:0;border-radius:50%;background:var(--dsh-pi);opacity:.8;cursor:pointer}',
+      '.dsh-shelves-swatch:hover{opacity:1;transform:scale(1.12)}',
+      '.dsh-shelves-swatch:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dsh-shelves-swatch-on{opacity:1;box-shadow:0 0 0 2px var(--dsw-alias-bg-overlay),0 0 0 3px var(--dsh-pi)}',
+      '.dsh-shelves-emojis{display:grid;grid-template-columns:repeat(8,22px);justify-content:space-between;gap:2px 0}',
+      '.dsh-shelves-emojis>button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;font-size:14px;line-height:1;cursor:pointer}',
+      '.dsh-shelves-emojis>button:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-emojis>button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}',
+      '.dsh-shelves-emojis>button[aria-pressed="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 18%,transparent)}',
       '.dsh-shelves-row:hover .dsh-shelves-time,.dsh-shelves-row:focus-within .dsh-shelves-time{opacity:0}',
       '.dsh-shelves-empty{padding:16px 10px;color:var(--dsw-alias-label-secondary);font-size:12px}',
       '.dsh-shelves-rail{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:36px;height:36px;margin:0 auto;border:0;border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;font-variant-numeric:tabular-nums;cursor:pointer}',
@@ -189,7 +251,7 @@ window.__ModuleLoader__.load({
       };
     }
 
-    function normalizePinned(raw) {
+    function normalizeMap(raw) {
       return raw !== null && typeof raw === 'object' ? raw : {};
     }
 
@@ -214,18 +276,63 @@ window.__ModuleLoader__.load({
       return `${Math.floor(days / 30)}mo`;
     }
 
-    function workspaceLabels(items) {
-      const labels = new Map();
+    function workspaceIndex(items) {
+      const bySession = new Map();
       for (const workspace of items ?? []) {
-        const label = workspace.title || workspace.path || '';
         for (const id of workspace.sessionIds ?? []) {
-          if (!labels.has(id)) labels.set(id, label);
+          if (!bySession.has(id)) bySession.set(id, workspace);
         }
       }
-      return labels;
+      return bySession;
     }
 
-    function deriveRows(list, statuses, labels, currentId, archived, pinned) {
+    function workspaceIconName(workspace) {
+      const title = (workspace.title ?? '').trim();
+      if (title !== '') return title;
+      const path = (workspace.path ?? '').replace(/[\\/]+$/, '');
+      const base = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
+      return base.trim() === '' ? 'project' : base.trim();
+    }
+
+    // t3code's monogram: the first letter of the first word, then the first digit
+    // after it, else the last word's first letter, else the first word's last letter.
+    function projectMonogram(name) {
+      const words = name.normalize('NFKC').trim().match(/[\p{L}\p{N}]+/gu) ?? [];
+      const firstWord = words[0];
+      if (firstWord === undefined) return 'PR';
+      const glyphs = Array.from(firstWord);
+      const first = glyphs[0] ?? 'P';
+      const second =
+        glyphs.slice(1).find((glyph) => /\p{N}/u.test(glyph)) ??
+        (words.length > 1 ? Array.from(words[words.length - 1] ?? '')[0] : glyphs[glyphs.length - 1]) ??
+        first;
+      return Array.from(`${first}${second}`.toUpperCase()).slice(0, 2).join('');
+    }
+
+    // t3code's color: the same name always lands on the same palette slot, so a
+    // project keeps its color with nothing stored.
+    function projectColor(name) {
+      const seed = name.normalize('NFKC').trim().toLocaleLowerCase('en-US') || 'project';
+      let index = 0;
+      for (const glyph of seed) {
+        index = (index * 31 + (glyph.codePointAt(0) ?? 0)) % PROJECT_COLORS.length;
+      }
+      return PROJECT_COLORS[index]?.[0] ?? 'blue';
+    }
+
+    // An explicit choice wins over the automatic identity, the way t3code resolves
+    // a project's icon: override, then the name-derived monogram and color.
+    function projectIcon(name, override) {
+      const picked = override?.color;
+      const color = PROJECT_COLORS.some(([value]) => value === picked) ? picked : projectColor(name);
+      return {
+        color,
+        emoji: typeof override?.emoji === 'string' ? override.emoji : '',
+        text: projectMonogram(name),
+      };
+    }
+
+    function deriveRows(list, statuses, workspaces, currentId, archived, pinned, icons) {
       const byId = list.byId ?? {};
       const rows = [];
       for (const id of list.ids ?? []) {
@@ -249,11 +356,14 @@ window.__ModuleLoader__.load({
         const pending = kind === 'approval' || kind === 'plan-review' || kind === 'question' ? kind : undefined;
         const completed = status?.completionUnread === true;
         const updatedAtMs = toMillis(session.updatedAt);
+        const workspace = workspaces.get(id);
         rows.push({
           id,
           title: session.blank === true ? '' : (session.title ?? '').trim(),
           blank: session.blank === true,
-          workspace: labels.get(id) ?? '',
+          workspace: workspace === undefined ? '' : (workspace.title || workspace.path || ''),
+          workspaceId: workspace?.workspaceId,
+          icon: workspace === undefined ? null : projectIcon(workspaceIconName(workspace), icons[workspace.workspaceId]),
           updatedAtMs,
           archived: archived.has(id),
           pinned: pinned[id] !== undefined,
@@ -307,9 +417,11 @@ window.__ModuleLoader__.load({
       }, [openTabs]);
 
       const [settings, setSettings] = React.useState(() => normalizeSettings(readJson(SETTINGS_KEY, {})));
-      const [pinned, setPinned] = React.useState(() => normalizePinned(readJson(PINNED_KEY, {})));
+      const [pinned, setPinned] = React.useState(() => normalizeMap(readJson(PINNED_KEY, {})));
+      const [icons, setIcons] = React.useState(() => normalizeMap(readJson(ICONS_KEY, {})));
       const [settingsOpen, setSettingsOpen] = React.useState(false);
       const [archivedOpen, setArchivedOpen] = React.useState(false);
+      const [iconPicker, setIconPicker] = React.useState(null);
       const [clock, bumpClock] = React.useReducer((n) => n + 1, 0);
 
       React.useEffect(() => {
@@ -329,6 +441,46 @@ window.__ModuleLoader__.load({
         writeJson(PINNED_KEY, next);
       };
 
+      // A null patch drops the Workspace back to its automatic identity.
+      const updateIcon = (workspaceId, patch) =>
+        setIcons((prev) => {
+          const next = { ...prev };
+          if (patch === null) delete next[workspaceId];
+          else next[workspaceId] = { ...next[workspaceId], ...patch };
+          writeJson(ICONS_KEY, next);
+          return next;
+        });
+
+      const openIconPicker = (row, event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - 208));
+        const top = rect.bottom + 6 + 170 > window.innerHeight ? Math.max(8, rect.top - 176) : rect.bottom + 6;
+        setIconPicker({ workspaceId: row.workspaceId, name: row.workspace, left, top });
+      };
+
+      React.useEffect(() => {
+        if (iconPicker === null) return undefined;
+        const close = () => setIconPicker(null);
+        const onPointerDown = (event) => {
+          const target = event.target;
+          if (target instanceof Element && target.closest('.dsh-shelves-iconpicker, .dsh-shelves-proj') !== null) return;
+          close();
+        };
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') close();
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+          document.removeEventListener('pointerdown', onPointerDown, true);
+          document.removeEventListener('keydown', onKeyDown);
+          window.removeEventListener('scroll', close, true);
+          window.removeEventListener('resize', close);
+        };
+      }, [iconPicker]);
+
       const currentId = React.useMemo(() => {
         const byId = list.byId ?? {};
         for (const id of Object.keys(byId)) {
@@ -339,8 +491,8 @@ window.__ModuleLoader__.load({
 
       const archived = React.useMemo(() => new Set(archivedIds ?? []), [archivedIds]);
       const rows = React.useMemo(
-        () => deriveRows(list, statuses, workspaceLabels(items), currentId, archived, pinned),
-        [list, statuses, items, currentId, archived, pinned],
+        () => deriveRows(list, statuses, workspaceIndex(items), currentId, archived, pinned, icons),
+        [list, statuses, items, currentId, archived, pinned, icons],
       );
 
       // A run that ends stays marked "Done" until the row is opened. DSH's own
@@ -486,6 +638,46 @@ window.__ModuleLoader__.load({
         updatePinned(next);
       };
 
+      // The Workspace's tile: a two-letter monogram in its own color, or the emoji
+      // the user picked. Clicking it opens the picker; an ungrouped Session has none.
+      const renderProjectIcon = (row) => {
+        if (row.icon === null) return null;
+        const label = `${t('icon.edit')}: ${row.workspace}`;
+        return h(
+          'button',
+          {
+            type: 'button',
+            className: `dsh-shelves-proj dsh-shelves-pi-${row.icon.color}`,
+            'aria-label': label,
+            title: label,
+            onClick: (event) => {
+              event.stopPropagation();
+              openIconPicker(row, event);
+            },
+          },
+          row.icon.emoji !== ''
+            ? h('span', { className: 'dsh-shelves-proj-emoji' }, row.icon.emoji)
+            : h(
+                'svg',
+                { viewBox: '0 0 16 16', 'aria-hidden': true },
+                h(
+                  'text',
+                  {
+                    x: 8,
+                    y: 10.8,
+                    textAnchor: 'middle',
+                    fill: 'currentColor',
+                    fontSize: 8.25,
+                    fontWeight: 700,
+                    textLength: Array.from(row.icon.text).length === 1 ? 6 : 12,
+                    lengthAdjust: 'spacingAndGlyphs',
+                  },
+                  row.icon.text,
+                ),
+              ),
+        );
+      };
+
       const renderRow = (row) => {
         const selected = row.id === currentId && !panelActive;
         const title = row.blank ? t('session.new') : row.title || t('session.untitled');
@@ -506,6 +698,8 @@ window.__ModuleLoader__.load({
             title,
             onClick: () => open(row),
             onKeyDown: (event) => {
+              // Keys pressed inside the row's own buttons belong to those buttons.
+              if (event.target !== event.currentTarget) return;
               if (event.key !== 'Enter' && event.key !== ' ') return;
               event.preventDefault();
               open(row);
@@ -533,6 +727,7 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { className: 'dsh-shelves-metaline' },
+            renderProjectIcon(row),
             row.pinned
               ? h(
                   'span',
@@ -661,11 +856,79 @@ window.__ModuleLoader__.load({
         stack.push(h('div', { key: 'bottom', className: 'dsh-shelves-bottom' }, bottom));
       }
 
+      // Anchored under the clicked tile; fixed so the scroll column cannot clip it.
+      const renderIconPicker = () => {
+        if (iconPicker === null) return null;
+        const workspaceId = iconPicker.workspaceId;
+        const current = projectIcon(iconPicker.name, icons[workspaceId]);
+        return h(
+          'div',
+          {
+            className: 'dsh-shelves-iconpicker',
+            style: { left: iconPicker.left, top: iconPicker.top },
+            role: 'dialog',
+            'aria-label': t('icon.edit'),
+          },
+          h(
+            'div',
+            { className: 'dsh-shelves-iconpicker-head' },
+            h('span', { className: 'dsh-shelves-iconpicker-name' }, iconPicker.name),
+            h(
+              'button',
+              { type: 'button', className: 'dsh-shelves-iconpicker-auto', onClick: () => updateIcon(workspaceId, null) },
+              t('icon.auto'),
+            ),
+          ),
+          h(
+            'div',
+            { className: 'dsh-shelves-swatches' },
+            PROJECT_COLORS.map(([color], index) => {
+              const active = current.color === color;
+              return h('button', {
+                key: color,
+                autoFocus: index === 0,
+                type: 'button',
+                className: active
+                  ? `dsh-shelves-swatch dsh-shelves-pi-${color} dsh-shelves-swatch-on`
+                  : `dsh-shelves-swatch dsh-shelves-pi-${color}`,
+                'aria-label': color,
+                'aria-pressed': active ? 'true' : 'false',
+                title: color,
+                onClick: () => updateIcon(workspaceId, { color }),
+              });
+            }),
+          ),
+          h(
+            'div',
+            { className: 'dsh-shelves-emojis' },
+            PROJECT_EMOJIS.map((emoji) => {
+              const active = current.emoji === emoji;
+              return h(
+                'button',
+                {
+                  key: emoji,
+                  type: 'button',
+                  'aria-label': emoji,
+                  'aria-pressed': active ? 'true' : 'false',
+                  onClick: () => updateIcon(workspaceId, { emoji: active ? '' : emoji }),
+                },
+                emoji,
+              );
+            }),
+          ),
+        );
+      };
+
       return h(
         React.Fragment,
         null,
         styles,
-        h('div', { key: 'root', className: 'dsh-shelves-root' }, h('div', { className: 'dsh-shelves-scroll' }, h('div', { className: 'dsh-shelves-stack' }, stack))),
+        h(
+          'div',
+          { key: 'root', className: 'dsh-shelves-root' },
+          h('div', { className: 'dsh-shelves-scroll' }, h('div', { className: 'dsh-shelves-stack' }, stack)),
+          renderIconPicker(),
+        ),
       );
     }
 

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Sidebar Session Cards",
-    "description": "Replaces the sidebar session list with two-line cards: pinning, manual or after-N-days archiving, running and waiting status markers, a terminal marker, and automatic sorting by the latest input."
+    "description": "Replaces the sidebar session list with two-line cards: a project icon per workspace, pinning, manual or after-N-days archiving, running and waiting status markers, a terminal marker, and automatic sorting by the latest input."
   }
 }
