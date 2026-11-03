@@ -12,14 +12,20 @@
  * Archiving uses the Host's own durable state, never a derived status: a
  * session leaves the list only when the user archives it. Pinning is local and
  * independent of archiving.
+ *
+ * The composer's workspace menu is the second occupant: it draws each Workspace
+ * with the same project tile and orders them by their newest session, so the
+ * sidebar and the picker share one icon set and one recency rule.
  */
 window.__ModuleLoader__.load({
   id: '@local/dsh-sidebar-shelves',
   factory(require) {
     const React = require('react');
+    const { Button, IconPlusOutlineRegular, Menu, Modal } = require('@deepseek-ai/dsh-client-ui-primitives');
     const h = React.createElement;
     const NS = 'local.sidebarShelves';
 
+    const ADD_WORKSPACE = '::add-workspace';
     const DAY_MS = 86400000;
     const AUTO_CLEAR_MS = 2500;
     const SETTINGS_KEY = 'dsh:sidebar-shelves:settings';
@@ -90,6 +96,10 @@ window.__ModuleLoader__.load({
       'action.unarchive': '取消归档',
       'action.pin': '置顶会话',
       'action.unpin': '取消置顶',
+      'menu.addWorkspace': '添加工作区…',
+      'menu.addFailed': '无法添加工作区',
+      'menu.addRetry': '重试',
+      'menu.close': '关闭',
       'icon.edit': '更改项目图标',
       'icon.auto': '自动',
       'icon.file': '选择文件…',
@@ -125,6 +135,10 @@ window.__ModuleLoader__.load({
       'action.unarchive': 'Unarchive session',
       'action.pin': 'Pin session',
       'action.unpin': 'Unpin session',
+      'menu.addWorkspace': 'Add workspace…',
+      'menu.addFailed': 'Could not add workspace',
+      'menu.addRetry': 'Try again',
+      'menu.close': 'Close',
       'icon.edit': 'Change project icon',
       'icon.auto': 'Auto',
       'icon.file': 'Choose file…',
@@ -195,11 +209,12 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-action:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
       '.dsh-shelves-action-pinned{color:var(--dsw-alias-state-business-primary)}',
       '.dsh-shelves-pin{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-state-business-primary)}',
-      '.dsh-shelves-proj{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:14px;height:14px;margin:0;padding:0;border:0;border-radius:22%;overflow:hidden;background:color-mix(in srgb,var(--dsh-pi) 14%,transparent);color:var(--dsh-pi);font:inherit;cursor:pointer}',
+      '.dsh-shelves-proj,.dsh-shelves-menuproj{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:14px;height:14px;margin:0;padding:0;border:0;border-radius:22%;overflow:hidden;background:color-mix(in srgb,var(--dsh-pi) 14%,transparent);color:var(--dsh-pi);font:inherit}',
+      '.dsh-shelves-proj{cursor:pointer}',
       '.dsh-shelves-proj:hover{background:color-mix(in srgb,var(--dsh-pi) 26%,transparent)}',
       '.dsh-shelves-proj:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
-      '.dsh-shelves-proj svg{display:block;width:14px;height:14px}',
-      '.dsh-shelves-proj text{font-family:var(--dsh-font-family-code,ui-monospace,monospace)}',
+      '.dsh-shelves-proj svg,.dsh-shelves-menuproj svg{display:block;width:14px;height:14px}',
+      '.dsh-shelves-proj text,.dsh-shelves-menuproj text{font-family:var(--dsh-font-family-code,ui-monospace,monospace)}',
       '.dsh-shelves-proj-emoji{font-size:11px;line-height:1}',
       ...PROJECT_COLORS.flatMap(([name, light, dark]) => [
         `.dsh-shelves-pi-${name}{--dsh-pi:${light}}`,
@@ -323,6 +338,28 @@ window.__ModuleLoader__.load({
         /* storage is best effort; the session list still works without it */
       }
     }
+
+    // One module-level store per persisted choice, so two surfaces (the sidebar
+    // and the composer menu) read the same value and see each other's writes
+    // without a reload.
+    function createJsonStore(key) {
+      let value = readJson(key, {});
+      const listeners = new Set();
+      return {
+        get: () => value,
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        set: (next) => {
+          value = next;
+          writeJson(key, next);
+          for (const listener of listeners) listener();
+        },
+      };
+    }
+
+    const iconsStore = createJsonStore(ICONS_KEY);
 
     function normalizeSettings(raw) {
       return {
@@ -725,39 +762,42 @@ window.__ModuleLoader__.load({
       return url;
     }
 
-    // One row's Workspace tile: the chosen image when it loads, else the emoji or
-    // the monogram. The picker opens from the same tile either way.
-    function ProjectTile(props) {
-      const { icon, label, workspaceId, workspacePath, sessionId, readFileBytes, onOpen } = props;
+    // A tile's face: the chosen image when it loads, else the emoji or the
+    // name-derived monogram. Both surfaces draw it — the sidebar row's tile and
+    // the composer menu's leading glyph — so one Workspace looks the same twice.
+    function ProjectFace(props) {
+      const { icon, workspaceId, workspacePath, sessionId, readFileBytes } = props;
       const appearance = useAppearance();
       const absolutePath = icon.file === '' || readFileBytes === undefined ? null : `${workspacePath}/${icon.file}`;
       const key = absolutePath === null ? null : iconKey(workspaceId, icon.file, appearance);
       const url = useIconUrl(key, () => loadIconUrl(readFileBytes, sessionId, absolutePath));
-      let content;
       if (url !== null) {
-        content = h('img', { className: 'dsh-shelves-proj-img', src: url, alt: '', draggable: false });
-      } else if (icon.emoji !== '') {
-        content = h('span', { className: 'dsh-shelves-proj-emoji' }, icon.emoji);
-      } else {
-        content = h(
-          'svg',
-          { viewBox: '0 0 16 16', 'aria-hidden': true },
-          h(
-            'text',
-            {
-              x: 8,
-              y: 10.8,
-              textAnchor: 'middle',
-              fill: 'currentColor',
-              fontSize: 8.25,
-              fontWeight: 700,
-              textLength: Array.from(icon.text).length === 1 ? 6 : 12,
-              lengthAdjust: 'spacingAndGlyphs',
-            },
-            icon.text,
-          ),
-        );
+        return h('img', { className: 'dsh-shelves-proj-img', src: url, alt: '', draggable: false });
       }
+      if (icon.emoji !== '') return h('span', { className: 'dsh-shelves-proj-emoji' }, icon.emoji);
+      return h(
+        'svg',
+        { viewBox: '0 0 16 16', 'aria-hidden': true },
+        h(
+          'text',
+          {
+            x: 8,
+            y: 10.8,
+            textAnchor: 'middle',
+            fill: 'currentColor',
+            fontSize: 8.25,
+            fontWeight: 700,
+            textLength: Array.from(icon.text).length === 1 ? 6 : 12,
+            lengthAdjust: 'spacingAndGlyphs',
+          },
+          icon.text,
+        ),
+      );
+    }
+
+    // One row's Workspace tile: the face above, with the picker opening from it.
+    function ProjectTile(props) {
+      const { icon, label, onOpen } = props;
       return h(
         'button',
         {
@@ -770,7 +810,17 @@ window.__ModuleLoader__.load({
             onOpen(event);
           },
         },
-        content,
+        h(ProjectFace, props),
+      );
+    }
+
+    // The menu's leading glyph: the same face, non-interactive because the row
+    // itself carries the activation.
+    function MenuTile(props) {
+      return h(
+        'span',
+        { className: `dsh-shelves-menuproj dsh-shelves-pi-${props.icon.color}`, 'aria-hidden': true },
+        h(ProjectFace, props),
       );
     }
 
@@ -1233,7 +1283,7 @@ window.__ModuleLoader__.load({
 
       const [settings, setSettings] = React.useState(() => normalizeSettings(readJson(SETTINGS_KEY, {})));
       const [pinned, setPinned] = React.useState(() => normalizeMap(readJson(PINNED_KEY, {})));
-      const [icons, setIcons] = React.useState(() => normalizeMap(readJson(ICONS_KEY, {})));
+      const icons = React.useSyncExternalStore(iconsStore.subscribe, iconsStore.get);
       const [settingsOpen, setSettingsOpen] = React.useState(false);
       const [archivedOpen, setArchivedOpen] = React.useState(false);
       const [iconPicker, setIconPicker] = React.useState(null);
@@ -1258,14 +1308,12 @@ window.__ModuleLoader__.load({
       };
 
       // A null patch drops the Workspace back to its automatic identity.
-      const updateIcon = (workspaceId, patch) =>
-        setIcons((prev) => {
-          const next = { ...prev };
-          if (patch === null) delete next[workspaceId];
-          else next[workspaceId] = { ...next[workspaceId], ...patch };
-          writeJson(ICONS_KEY, next);
-          return next;
-        });
+      const updateIcon = (workspaceId, patch) => {
+        const next = { ...iconsStore.get() };
+        if (patch === null) delete next[workspaceId];
+        else next[workspaceId] = { ...next[workspaceId], ...patch };
+        iconsStore.set(next);
+      };
 
       const openIconPicker = (row, event) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -1763,8 +1811,118 @@ window.__ModuleLoader__.load({
       );
     }
 
+    // The composer's Workspace menu. Every Workspace arrives as the sidebar draws
+    // it — the chosen tile and its name — newest session activity first, so a
+    // project you just wrote in leads. The add entry stays the only mutation:
+    // this surface picks or creates, it never renames or reorders.
+    function WorkspaceMenu(props) {
+      const {
+        open, anchorRef, selectedId, onPick, onClose, useWorkspaces, useSessions,
+        createWorkspace, pickDirectory, readFileBytes, t,
+      } = props;
+      const workspaces = useWorkspaces((state) => state.items);
+      const sessions = useSessions((state) => state) ?? EMPTY_LIST;
+      const icons = React.useSyncExternalStore(iconsStore.subscribe, iconsStore.get);
+      const [failure, setFailure] = React.useState(null);
+      const [busy, setBusy] = React.useState(false);
+
+      // A Workspace's activity is its newest session's input time; a Workspace
+      // without one keeps its Host position behind the active ones.
+      const ordered = React.useMemo(() => {
+        const lastUsed = (workspace) => {
+          let latest = 0;
+          for (const id of workspace.sessionIds ?? []) {
+            const session = sessions.byId?.[id];
+            if (session === undefined || session.origin === 'subagent') continue;
+            const ms = toMillis(session.updatedAt);
+            if (ms > latest) latest = ms;
+          }
+          return latest;
+        };
+        return workspaces
+          .map((workspace, index) => ({ workspace, index, latest: lastUsed(workspace) }))
+          .sort((left, right) => right.latest - left.latest || left.index - right.index)
+          .map((row) => row.workspace);
+      }, [workspaces, sessions]);
+
+      const items = ordered.map((workspace) => {
+        const name = workspaceIconName(workspace);
+        return {
+          id: workspace.workspaceId,
+          label: name,
+          icon: h(MenuTile, {
+            icon: projectIcon(name, icons[workspace.workspaceId]),
+            workspaceId: workspace.workspaceId,
+            workspacePath: workspace.path ?? '',
+            sessionId: workspace.sessionIds?.[0],
+            readFileBytes,
+          }),
+        };
+      });
+      const footer = [{
+        id: ADD_WORKSPACE,
+        label: t('menu.addWorkspace'),
+        icon: h(IconPlusOutlineRegular, { size: 16 }),
+        disabled: busy,
+      }];
+
+      // The owner's pick semantics: adopt the directory, then target it. A
+      // failure reopens the same dialog the default picker owns, with retry.
+      const add = () => {
+        onClose();
+        setBusy(true);
+        Promise.resolve()
+          .then(() => pickDirectory())
+          .then((path) => (path === null ? null : createWorkspace({ path })))
+          .then((workspace) => {
+            if (workspace !== null) onPick(workspace.workspaceId);
+          })
+          .catch((reason) => setFailure(reason instanceof Error ? reason.message : String(reason)))
+          .finally(() => setBusy(false));
+      };
+
+      const select = (id) => {
+        if (id === ADD_WORKSPACE) add();
+        else onPick(id);
+      };
+
+      return h(
+        React.Fragment,
+        null,
+        h(Menu, {
+          open,
+          anchor: null,
+          items,
+          footer,
+          selectedId,
+          onSelect: select,
+          onClose,
+          side: 'bottom',
+          portal: true,
+          getAnchorRect: () => anchorRef?.current?.getBoundingClientRect() ?? null,
+        }),
+        h(
+          Modal,
+          {
+            open: failure !== null,
+            onClose: () => setFailure(null),
+            closeLabel: t('menu.close'),
+            title: t('menu.addFailed'),
+            footer: h(Button, {
+              variant: 'primary',
+              onClick: () => {
+                setFailure(null);
+                add();
+              },
+            }, t('menu.addRetry')),
+          },
+          h('div', { role: 'alert' }, failure ?? ''),
+        ),
+      );
+    }
+
     return {
-      inject: ['slots', 'locale', 'uiWorkspace', 'remote', 'remote.workspaceFiles'],
+      inject: ['slots', 'locale', 'uiWorkspace', 'remote', 'remote.workspaceFiles', 'workspaces'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'sidebar-shelves: dictionaries');
         ctx.slots.inject('sidebar.workspaces', () =>
@@ -1784,6 +1942,27 @@ window.__ModuleLoader__.load({
               }),
             },
             Shelves,
+          ),
+        );
+        ctx.slots.inject('conversation.hero.workspace', () =>
+          ctx.slots.register(
+            {
+              name: 'conversation.hero.workspace',
+              priority: -1,
+              locale: NS,
+              inject: () => ({
+                createWorkspace: (input) => ctx.get('workspaces').create(input),
+                // The desktop bridge when the shell exposes one, else the Host
+                // chooser — the same preference the native picking occupant makes.
+                pickDirectory: () => {
+                  const desktop = globalThis.__DSH_DIRECTORY_PICKER__;
+                  return desktop === undefined ? ctx.uiWorkspace.pickDirectory() : desktop.pick();
+                },
+                readFileBytes: (sessionId, path, length, signal) =>
+                  ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length } }, signal),
+              }),
+            },
+            WorkspaceMenu,
           ),
         );
       },
