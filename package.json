@@ -5,6 +5,14 @@
   "description": "Two-line session cards for the DSH sidebar: per-workspace project icons, pinning, archiving, status markers, job counts, and recency sorting",
   "license": "MIT",
   "author": "Han (https://github.com/YL404)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YL404/dsh-sidebar-shelves.git"
+  },
+  "homepage": "https://github.com/YL404/dsh-sidebar-shelves#readme",
+  "bugs": {
+    "url": "https://github.com/YL404/dsh-sidebar-shelves/issues"
+  },
   "keywords": [
     "deepseek-harness",
     "dsh",
