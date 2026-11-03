@@ -245,10 +245,13 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-headtile{width:16px;height:16px}',
       '.dsh-shelves-headtile svg,.dsh-shelves-headtile .dsh-shelves-proj-img{display:block;width:16px;height:16px}',
       '.dsh-shelves-headtile .dsh-shelves-proj-emoji{font-size:12px}',
-      // Collapsed, the main panel reaches the window corner and the frame owns
-      // that band with the traffic lights and shell controls: the tile steps
-      // aside rather than sitting under the chrome.
-      '[data-sidebar-collapsed] .dsh-shelves-headtile{display:none}',
+      // Collapsed on macOS the frame's chrome (traffic lights, the two reopen
+      // controls) owns the band the header starts in, and the title row pads
+      // itself past that band. The tile keeps its 16px of flow but draws it
+      // after the band, so the title simply moves past the tile instead of the
+      // tile landing under the chrome. The two margins cancel to one tile
+      // width, which is why the title shifts by 16px and no more.
+      "html[data-platform='darwin'] [data-sidebar-collapsed] .dsh-shelves-headtile{margin-inline-start:max(0px,calc(var(--dsh-frame-leading-clearance,0px) - 20px));margin-inline-end:min(0px,calc(20px - var(--dsh-frame-leading-clearance,0px)))}",
       ...PROJECT_COLORS.flatMap(([name, light, dark]) => [
         `.dsh-shelves-pi-${name}{--dsh-pi:${light}}`,
         `body[data-ds-dark-theme] .dsh-shelves-pi-${name}{--dsh-pi:${dark}}`,
