@@ -7,7 +7,7 @@
  * is a two-line card — a status icon in a fixed slot, the title, and its
  * relative time, then the Workspace's project tile, the pin, its name, and the
  * terminal marker. The tile follows t3code: a name-derived monogram and color,
- * replaced by the emoji or color the user picks for that Workspace.
+ * replaced by the emoji, color, or workspace image file the user picks.
  *
  * Archiving uses the Host's own durable state, never a derived status: a
  * session leaves the list only when the user archives it. Pinning is local and
@@ -55,6 +55,22 @@ window.__ModuleLoader__.load({
       '🖥️', '⌨️', '⚙️', '🗄️', '☁️', '📦', '📚', '🧪',
       '🔒', '🎮', '🎵', '🎬', '🖼️', '🛍️', '🔥', '💡',
     ];
+    // Image files a Workspace icon may name, and the cap one may weigh.
+    const ICON_MIME = {
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      svg: 'image/svg+xml',
+      ico: 'image/x-icon',
+      avif: 'image/avif',
+      bmp: 'image/bmp',
+    };
+    const MAX_ICON_BYTES = 2 * 1024 * 1024;
+    // One object URL per Workspace file, shared by every row and the picker.
+    const ICON_URLS = new Map();
+    const ICON_LOADS = new Map();
 
     const zh = {
       'shelf.archived': '已归档',
@@ -72,6 +88,15 @@ window.__ModuleLoader__.load({
       'action.unpin': '取消置顶',
       'icon.edit': '更改项目图标',
       'icon.auto': '自动',
+      'icon.file': '选择文件…',
+      'file.title': '选择图标文件',
+      'file.cancel': '取消',
+      'file.pick': '使用此图标',
+      'file.up': '上一级',
+      'file.hint': '选一张图片作为图标',
+      'file.loading': '读取中…',
+      'file.failed': '无法读取这个文件',
+      'file.empty': '这里没有图片文件',
       'status.working': '工作中',
       'status.approval': '待审批',
       'status.planReview': '待确认',
@@ -96,6 +121,15 @@ window.__ModuleLoader__.load({
       'action.unpin': 'Unpin session',
       'icon.edit': 'Change project icon',
       'icon.auto': 'Auto',
+      'icon.file': 'Choose file…',
+      'file.title': 'Choose an icon file',
+      'file.cancel': 'Cancel',
+      'file.pick': 'Use this icon',
+      'file.up': 'Up',
+      'file.hint': 'Pick an image to use as the icon',
+      'file.loading': 'Reading…',
+      'file.failed': 'Could not read this file',
+      'file.empty': 'No image files here',
       'status.working': 'Working',
       'status.approval': 'Approval',
       'status.planReview': 'Plan review',
@@ -179,6 +213,37 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-emojis>button:hover{background:var(--dsw-alias-bg-layer-2)}',
       '.dsh-shelves-emojis>button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}',
       '.dsh-shelves-emojis>button[aria-pressed="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 18%,transparent)}',
+      '.dsh-shelves-proj-img{display:block;width:14px;height:14px;object-fit:contain}',
+      '.dsh-shelves-iconpicker-file{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;height:26px;padding:0 6px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}',
+      '.dsh-shelves-iconpicker-file:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-iconpicker-file:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
+      '.dsh-shelves-files{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:24px;background:#00000066}',
+      '.dsh-shelves-files-panel{display:flex;flex-direction:column;box-sizing:border-box;width:min(560px,100%);height:min(440px,100%);overflow:hidden;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-overlay);box-shadow:0 18px 48px #00000040}',
+      '.dsh-shelves-files-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--dsw-alias-border-l1)}',
+      '.dsh-shelves-files-title{flex:none;font-size:13px;font-weight:600}',
+      '.dsh-shelves-files-name{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-files-crumb{padding:7px 14px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:11px;color:var(--dsw-alias-label-secondary);word-break:break-all}',
+      '.dsh-shelves-files-body{display:flex;flex:1 1 auto;min-height:0}',
+      '.dsh-shelves-files-list{flex:1 1 auto;min-width:0;overflow-y:auto;padding:6px}',
+      '.dsh-shelves-files-row{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:30px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-align:left;cursor:pointer}',
+      '.dsh-shelves-files-row:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-files-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
+      '.dsh-shelves-files-row[aria-selected="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 16%,transparent)}',
+      '.dsh-shelves-files-glyph{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-files-row-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-shelves-files-row-size{margin-left:auto;flex:none;font-size:11px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
+      '.dsh-shelves-files-preview{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;width:190px;padding:14px;border-left:1px solid var(--dsw-alias-border-l1)}',
+      '.dsh-shelves-files-preview img{width:96px;height:96px;object-fit:contain;border-radius:8px}',
+      '.dsh-shelves-files-preview-name{font-size:11px;color:var(--dsw-alias-label-secondary);text-align:center;word-break:break-all}',
+      '.dsh-shelves-files-empty{padding:16px 10px;font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-files-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--dsw-alias-border-l1)}',
+      '.dsh-shelves-files-btn{height:28px;padding:0 12px;border:0;border-radius:7px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}',
+      '.dsh-shelves-files-btn:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 12%,var(--dsw-alias-bg-layer-2))}',
+      '.dsh-shelves-files-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dsh-shelves-files-btn:disabled{opacity:.45;cursor:default}',
+      '.dsh-shelves-files-btn-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base)}',
+      '.dsh-shelves-files-btn-primary:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 86%,var(--dsw-alias-bg-base))}',
+      '@media (max-width:520px){.dsh-shelves-files-preview{display:none}}',
       '.dsh-shelves-row:hover .dsh-shelves-time,.dsh-shelves-row:focus-within .dsh-shelves-time{opacity:0}',
       '.dsh-shelves-empty{padding:16px 10px;color:var(--dsw-alias-label-secondary);font-size:12px}',
       '.dsh-shelves-rail{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:36px;height:36px;margin:0 auto;border:0;border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;font-variant-numeric:tabular-nums;cursor:pointer}',
@@ -205,6 +270,9 @@ window.__ModuleLoader__.load({
       gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z',
       pin: 'M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z',
       unarchive: 'M3.5 5.5h17v3.5h-17zM5.5 9v9.5h13V9M12 15.5V10M9.5 12.5l2.5-2.5 2.5 2.5',
+      folder: 'M3.5 6.5h6l2 2h9v10h-17z',
+      image: 'M3.5 5.5h17v13h-17zM7 14.5l3.5-3.5 3 3 2-2 2 2M8 9.5h.01',
+      up: 'M12 19V5M6 11l6-6 6 6',
     };
 
     function glyph(name, size) {
@@ -321,15 +389,60 @@ window.__ModuleLoader__.load({
     }
 
     // An explicit choice wins over the automatic identity, the way t3code resolves
-    // a project's icon: override, then the name-derived monogram and color.
+    // a project's icon: a chosen image, then an emoji, then the name-derived
+    // monogram and color.
     function projectIcon(name, override) {
       const picked = override?.color;
       const color = PROJECT_COLORS.some(([value]) => value === picked) ? picked : projectColor(name);
+      const file = typeof override?.file === 'string' ? override.file : '';
       return {
         color,
-        emoji: typeof override?.emoji === 'string' ? override.emoji : '',
+        file,
+        emoji: file === '' && typeof override?.emoji === 'string' ? override.emoji : '',
         text: projectMonogram(name),
       };
+    }
+
+    function iconMime(name) {
+      const dot = name.lastIndexOf('.');
+      return dot < 0 ? null : (ICON_MIME[name.slice(dot + 1).toLowerCase()] ?? null);
+    }
+
+    function formatBytes(bytes) {
+      if (typeof bytes !== 'number' || bytes <= 0) return '';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    // One read per file: rows and the picker's preview share the object URL, and a
+    // failed read is remembered so a broken path does not retry on every render.
+    function iconUrlFor(key, load) {
+      if (ICON_URLS.has(key)) return Promise.resolve(ICON_URLS.get(key));
+      const pending = ICON_LOADS.get(key);
+      if (pending !== undefined) return pending;
+      const promise = load().then(
+        (url) => {
+          ICON_URLS.set(key, url);
+          ICON_LOADS.delete(key);
+          return url;
+        },
+        () => {
+          ICON_URLS.set(key, null);
+          ICON_LOADS.delete(key);
+          return null;
+        },
+      );
+      ICON_LOADS.set(key, promise);
+      return promise;
+    }
+
+    async function loadIconUrl(readFileBytes, sessionId, absolutePath) {
+      const mime = iconMime(absolutePath);
+      if (mime === null) return null;
+      const result = await readFileBytes(sessionId, absolutePath);
+      if (result?.ok !== true || result.value.eof !== true) return null;
+      return URL.createObjectURL(new Blob([result.value.data], { type: mime }));
     }
 
     function deriveRows(list, statuses, workspaces, currentId, archived, pinned, icons) {
@@ -363,6 +476,7 @@ window.__ModuleLoader__.load({
           blank: session.blank === true,
           workspace: workspace === undefined ? '' : (workspace.title || workspace.path || ''),
           workspaceId: workspace?.workspaceId,
+          workspacePath: workspace?.path ?? '',
           icon: workspace === undefined ? null : projectIcon(workspaceIconName(workspace), icons[workspace.workspaceId]),
           updatedAtMs,
           archived: archived.has(id),
@@ -391,8 +505,268 @@ window.__ModuleLoader__.load({
       return undefined;
     }
 
+    function useIconUrl(key, load) {
+      const [url, setUrl] = React.useState(() => (key === null ? null : (ICON_URLS.get(key) ?? null)));
+      React.useEffect(() => {
+        if (key === null) {
+          setUrl(null);
+          return undefined;
+        }
+        const cached = ICON_URLS.get(key);
+        if (cached !== undefined) {
+          setUrl(cached);
+          return undefined;
+        }
+        let alive = true;
+        setUrl(null);
+        iconUrlFor(key, load).then((value) => {
+          if (alive) setUrl(value);
+        });
+        return () => {
+          alive = false;
+        };
+      }, [key]);
+      return url;
+    }
+
+    // One row's Workspace tile: the chosen image when it loads, else the emoji or
+    // the monogram. The picker opens from the same tile either way.
+    function ProjectTile(props) {
+      const { icon, label, workspaceId, workspacePath, sessionId, readFileBytes, onOpen } = props;
+      const absolutePath = icon.file === '' || readFileBytes === undefined ? null : `${workspacePath}/${icon.file}`;
+      const key = absolutePath === null ? null : `${workspaceId}:${icon.file}`;
+      const url = useIconUrl(key, () => loadIconUrl(readFileBytes, sessionId, absolutePath));
+      let content;
+      if (url !== null) {
+        content = h('img', { className: 'dsh-shelves-proj-img', src: url, alt: '', draggable: false });
+      } else if (icon.emoji !== '') {
+        content = h('span', { className: 'dsh-shelves-proj-emoji' }, icon.emoji);
+      } else {
+        content = h(
+          'svg',
+          { viewBox: '0 0 16 16', 'aria-hidden': true },
+          h(
+            'text',
+            {
+              x: 8,
+              y: 10.8,
+              textAnchor: 'middle',
+              fill: 'currentColor',
+              fontSize: 8.25,
+              fontWeight: 700,
+              textLength: Array.from(icon.text).length === 1 ? 6 : 12,
+              lengthAdjust: 'spacingAndGlyphs',
+            },
+            icon.text,
+          ),
+        );
+      }
+      return h(
+        'button',
+        {
+          type: 'button',
+          className: `dsh-shelves-proj dsh-shelves-pi-${icon.color}`,
+          'aria-label': label,
+          title: label,
+          onClick: (event) => {
+            event.stopPropagation();
+            onOpen(event);
+          },
+        },
+        content,
+      );
+    }
+
+    // A workspace-scoped browser for one image file. Directories navigate in place;
+    // an image is read once, previewed on the right, and confirmed by the footer.
+    function FileDialog(props) {
+      const { workspaceId, workspacePath, sessionId, name, listFiles, readFileBytes, t, onClose, onPick } = props;
+      const [dir, setDir] = React.useState('');
+      const [listing, setListing] = React.useState({ status: 'loading', entries: [] });
+      const [selected, setSelected] = React.useState(null);
+      const [preview, setPreview] = React.useState(null);
+
+      React.useEffect(() => {
+        const controller = new AbortController();
+        setListing({ status: 'loading', entries: [] });
+        const target = dir === '' ? workspacePath : `${workspacePath}/${dir}`;
+        Promise.resolve()
+          .then(() => listFiles(sessionId, target, controller.signal))
+          .then(
+            (result) => {
+              if (controller.signal.aborted) return;
+              if (result?.ok !== true) {
+                setListing({
+                  status: 'failed',
+                  entries: [],
+                  error: result?.failure?.message ?? result?.failure?.code ?? t('file.empty'),
+                });
+                return;
+              }
+              setListing({ status: 'ready', entries: Array.isArray(result.value?.entries) ? result.value.entries : [] });
+            },
+            (error) => {
+              if (controller.signal.aborted) return;
+              setListing({
+                status: 'failed',
+                entries: [],
+                error: error instanceof Error ? error.message : String(error),
+              });
+            },
+          );
+        return () => controller.abort();
+      }, [sessionId, workspacePath, dir, listFiles]);
+
+      React.useEffect(() => {
+        setSelected(null);
+        setPreview(null);
+      }, [dir]);
+
+      React.useEffect(() => {
+        if (selected === null) return undefined;
+        let alive = true;
+        setPreview({ status: 'loading' });
+        const key = `${workspaceId}:${selected.path}`;
+        iconUrlFor(key, () => loadIconUrl(readFileBytes, sessionId, `${workspacePath}/${selected.path}`)).then((url) => {
+          if (!alive) return;
+          setPreview(url === null ? { status: 'failed' } : { status: 'ready', url });
+        });
+        return () => {
+          alive = false;
+        };
+      }, [selected, workspaceId, workspacePath, sessionId, readFileBytes]);
+
+      React.useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+      }, [onClose]);
+
+      const directories = [];
+      const images = [];
+      for (const entry of listing.entries) {
+        if (entry.type === 'directory') directories.push(entry);
+        else if (entry.type === 'file' && iconMime(entry.name) !== null) images.push(entry);
+      }
+      const byName = (left, right) => left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' });
+      directories.sort(byName);
+      images.sort(byName);
+
+      const row = (options) =>
+        h(
+          'button',
+          {
+            key: options.key,
+            type: 'button',
+            className: 'dsh-shelves-files-row',
+            'aria-selected': options.selected === true ? 'true' : undefined,
+            title: options.label,
+            onClick: options.onClick,
+          },
+          h('span', { className: 'dsh-shelves-files-glyph' }, glyph(options.glyph, 14)),
+          h('span', { className: 'dsh-shelves-files-row-name' }, options.label),
+          options.size === undefined ? null : h('span', { className: 'dsh-shelves-files-row-size' }, formatBytes(options.size)),
+        );
+
+      const rows = [];
+      if (dir !== '') {
+        rows.push(row({ key: '..', label: t('file.up'), glyph: 'up', onClick: () => setDir(dir.slice(0, Math.max(0, dir.lastIndexOf('/')))) }));
+      }
+      for (const entry of directories) {
+        rows.push(
+          row({
+            key: `d:${entry.name}`,
+            label: entry.name,
+            glyph: 'folder',
+            onClick: () => setDir(dir === '' ? entry.name : `${dir}/${entry.name}`),
+          }),
+        );
+      }
+      for (const entry of images) {
+        rows.push(
+          row({
+            key: `f:${entry.name}`,
+            label: entry.name,
+            glyph: 'image',
+            size: entry.size,
+            selected: selected?.name === entry.name,
+            onClick: () => setSelected({ name: entry.name, path: dir === '' ? entry.name : `${dir}/${entry.name}` }),
+          }),
+        );
+      }
+      if (rows.length === 0) {
+        rows.push(
+          h(
+            'div',
+            { key: 'empty', className: 'dsh-shelves-files-empty' },
+            listing.status === 'loading' ? t('file.loading') : (listing.error ?? t('file.empty')),
+          ),
+        );
+      }
+
+      let previewContent;
+      if (selected === null) {
+        previewContent = h('span', { className: 'dsh-shelves-files-preview-name' }, t('file.hint'));
+      } else if (preview === null || preview.status === 'loading') {
+        previewContent = h('span', { className: 'dsh-shelves-files-preview-name' }, t('file.loading'));
+      } else if (preview.status === 'failed') {
+        previewContent = h('span', { className: 'dsh-shelves-files-preview-name' }, t('file.failed'));
+      } else {
+        previewContent = [
+          h('img', { key: 'image', src: preview.url, alt: '' }),
+          h('span', { key: 'name', className: 'dsh-shelves-files-preview-name' }, selected.name),
+        ];
+      }
+
+      return h(
+        'div',
+        {
+          className: 'dsh-shelves-files',
+          onPointerDown: (event) => {
+            if (event.target === event.currentTarget) onClose();
+          },
+        },
+        h(
+          'div',
+          { className: 'dsh-shelves-files-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('file.title') },
+          h(
+            'div',
+            { className: 'dsh-shelves-files-head' },
+            h('span', { className: 'dsh-shelves-files-title' }, t('file.title')),
+            h('span', { className: 'dsh-shelves-files-name' }, name),
+          ),
+          h('div', { className: 'dsh-shelves-files-crumb' }, dir === '' ? name : `${name} / ${dir}`),
+          h(
+            'div',
+            { className: 'dsh-shelves-files-body' },
+            h('div', { className: 'dsh-shelves-files-list' }, rows),
+            h('div', { className: 'dsh-shelves-files-preview' }, previewContent),
+          ),
+          h(
+            'div',
+            { className: 'dsh-shelves-files-foot' },
+            h('button', { type: 'button', className: 'dsh-shelves-files-btn', onClick: onClose }, t('file.cancel')),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsh-shelves-files-btn dsh-shelves-files-btn-primary',
+                disabled: selected === null || preview?.status !== 'ready',
+                onClick: () => {
+                  if (selected !== null) onPick(selected.path);
+                },
+              },
+              t('file.pick'),
+            ),
+          ),
+        ),
+      );
+    }
+
     function Shelves(props) {
-      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, openSession, archiveSession, unarchiveSession, getOpenTabs, t } = props;
+      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, openSession, archiveSession, unarchiveSession, getOpenTabs, listFiles, readFileBytes, t } = props;
       const list = useSessions((state) => state) ?? EMPTY_LIST;
       const statuses = useSessionStatus((state) => state);
       const items = useWorkspaces((state) => state.items);
@@ -422,6 +796,7 @@ window.__ModuleLoader__.load({
       const [settingsOpen, setSettingsOpen] = React.useState(false);
       const [archivedOpen, setArchivedOpen] = React.useState(false);
       const [iconPicker, setIconPicker] = React.useState(null);
+      const [filePicker, setFilePicker] = React.useState(null);
       const [clock, bumpClock] = React.useReducer((n) => n + 1, 0);
 
       React.useEffect(() => {
@@ -454,8 +829,26 @@ window.__ModuleLoader__.load({
       const openIconPicker = (row, event) => {
         const rect = event.currentTarget.getBoundingClientRect();
         const left = Math.max(8, Math.min(rect.left, window.innerWidth - 208));
-        const top = rect.bottom + 6 + 170 > window.innerHeight ? Math.max(8, rect.top - 176) : rect.bottom + 6;
-        setIconPicker({ workspaceId: row.workspaceId, name: row.workspace, left, top });
+        const height = 200;
+        const top = rect.bottom + 6 + height > window.innerHeight ? Math.max(8, rect.top - height - 6) : rect.bottom + 6;
+        setIconPicker({
+          workspaceId: row.workspaceId,
+          workspacePath: row.workspacePath,
+          sessionId: row.id,
+          name: row.workspace,
+          left,
+          top,
+        });
+      };
+
+      const openFilePicker = () => {
+        setFilePicker({
+          workspaceId: iconPicker.workspaceId,
+          workspacePath: iconPicker.workspacePath,
+          sessionId: iconPicker.sessionId,
+          name: iconPicker.name,
+        });
+        setIconPicker(null);
       };
 
       React.useEffect(() => {
@@ -638,44 +1031,20 @@ window.__ModuleLoader__.load({
         updatePinned(next);
       };
 
-      // The Workspace's tile: a two-letter monogram in its own color, or the emoji
-      // the user picked. Clicking it opens the picker; an ungrouped Session has none.
+      // The Workspace's tile: its chosen image, an emoji, or a two-letter monogram
+      // in its own color. Clicking it opens the picker; an ungrouped Session has none.
       const renderProjectIcon = (row) => {
         if (row.icon === null) return null;
-        const label = `${t('icon.edit')}: ${row.workspace}`;
-        return h(
-          'button',
-          {
-            type: 'button',
-            className: `dsh-shelves-proj dsh-shelves-pi-${row.icon.color}`,
-            'aria-label': label,
-            title: label,
-            onClick: (event) => {
-              event.stopPropagation();
-              openIconPicker(row, event);
-            },
-          },
-          row.icon.emoji !== ''
-            ? h('span', { className: 'dsh-shelves-proj-emoji' }, row.icon.emoji)
-            : h(
-                'svg',
-                { viewBox: '0 0 16 16', 'aria-hidden': true },
-                h(
-                  'text',
-                  {
-                    x: 8,
-                    y: 10.8,
-                    textAnchor: 'middle',
-                    fill: 'currentColor',
-                    fontSize: 8.25,
-                    fontWeight: 700,
-                    textLength: Array.from(row.icon.text).length === 1 ? 6 : 12,
-                    lengthAdjust: 'spacingAndGlyphs',
-                  },
-                  row.icon.text,
-                ),
-              ),
-        );
+        return h(ProjectTile, {
+          key: `${row.workspaceId}:${row.icon.file}`,
+          icon: row.icon,
+          label: `${t('icon.edit')}: ${row.workspace}`,
+          workspaceId: row.workspaceId,
+          workspacePath: row.workspacePath,
+          sessionId: row.id,
+          readFileBytes,
+          onOpen: (event) => openIconPicker(row, event),
+        });
       };
 
       const renderRow = (row) => {
@@ -910,11 +1279,17 @@ window.__ModuleLoader__.load({
                   type: 'button',
                   'aria-label': emoji,
                   'aria-pressed': active ? 'true' : 'false',
-                  onClick: () => updateIcon(workspaceId, { emoji: active ? '' : emoji }),
+                  onClick: () => updateIcon(workspaceId, { emoji: active ? '' : emoji, file: '' }),
                 },
                 emoji,
               );
             }),
+          ),
+          h(
+            'button',
+            { type: 'button', className: 'dsh-shelves-iconpicker-file', onClick: openFilePicker },
+            h('span', { className: 'dsh-shelves-files-glyph' }, glyph('image', 13)),
+            h('span', null, t('icon.file')),
           ),
         );
       };
@@ -928,12 +1303,25 @@ window.__ModuleLoader__.load({
           { key: 'root', className: 'dsh-shelves-root' },
           h('div', { className: 'dsh-shelves-scroll' }, h('div', { className: 'dsh-shelves-stack' }, stack)),
           renderIconPicker(),
+          filePicker === null
+            ? null
+            : h(FileDialog, {
+                ...filePicker,
+                listFiles,
+                readFileBytes,
+                t,
+                onClose: () => setFilePicker(null),
+                onPick: (file) => {
+                  updateIcon(filePicker.workspaceId, { file, emoji: '' });
+                  setFilePicker(null);
+                },
+              }),
         ),
       );
     }
 
     return {
-      inject: ['slots', 'locale', 'uiWorkspace'],
+      inject: ['slots', 'locale', 'uiWorkspace', 'remote', 'remote.workspaceFiles'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'sidebar-shelves: dictionaries');
         ctx.slots.inject('sidebar.workspaces', () =>
@@ -947,6 +1335,9 @@ window.__ModuleLoader__.load({
                 archiveSession: (id) => ctx.uiWorkspace.archiveSession(id),
                 unarchiveSession: (id) => ctx.uiWorkspace.unarchiveSession(id),
                 getOpenTabs: () => ctx.get('sidebarRight')?.openTabs,
+                listFiles: (sessionId, path, signal) => ctx.remote.workspaceFiles.list(sessionId, path, signal),
+                readFileBytes: (sessionId, path, signal) =>
+                  ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length: MAX_ICON_BYTES } }, signal),
               }),
             },
             Shelves,
