@@ -231,6 +231,10 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-proj,.dsh-shelves-menuproj{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:14px;height:14px;margin:0;padding:0;border:0;border-radius:22%;overflow:hidden;background:color-mix(in srgb,var(--dsh-pi) 14%,transparent);color:var(--dsh-pi);font:inherit}',
       '.dsh-shelves-proj{cursor:pointer}',
       '.dsh-shelves-proj:hover{background:color-mix(in srgb,var(--dsh-pi) 26%,transparent)}',
+      // An emoji carries its own color, so its tile drops the tinted chip and
+      // keeps only a neutral hover.
+      '.dsh-shelves-proj:has(.dsh-shelves-proj-emoji),.dsh-shelves-menuproj:has(.dsh-shelves-proj-emoji){background:transparent}',
+      '.dsh-shelves-proj:has(.dsh-shelves-proj-emoji):hover{background:var(--dsw-alias-bg-layer-2)}',
       '.dsh-shelves-proj:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dsh-shelves-proj svg,.dsh-shelves-menuproj svg{display:block;width:14px;height:14px}',
       '.dsh-shelves-proj text,.dsh-shelves-menuproj text{font-family:var(--dsh-font-family-code,ui-monospace,monospace)}',
