@@ -98,6 +98,7 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-row-selected{background:var(--dsw-alias-bg-layer-2)}',
       '.dsh-shelves-titleline{display:flex;align-items:center;gap:6px;min-width:0;min-height:22px}',
       '.dsh-shelves-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}',
+      '.dsh-shelves-title-done{font-weight:700}',
       '.dsh-shelves-row-archived .dsh-shelves-title{font-weight:400;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-metaline{display:flex;align-items:center;gap:6px;min-width:0;min-height:16px;margin-top:2px;font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-ws{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -526,7 +527,7 @@ window.__ModuleLoader__.load({
                   },
                   glyph(status.key, 13),
                 ),
-            h('span', { className: 'dsh-shelves-title' }, title),
+            h('span', { className: status?.key === 'done' ? 'dsh-shelves-title dsh-shelves-title-done' : 'dsh-shelves-title' }, title),
             time === '' ? null : h('span', { className: 'dsh-shelves-time' }, time),
           ),
           h(
