@@ -92,11 +92,14 @@ window.__ModuleLoader__.load({
       'file.title': '选择图标文件',
       'file.cancel': '取消',
       'file.pick': '使用此图标',
-      'file.up': '上一级',
       'file.hint': '选一张图片作为图标',
+      'file.search': '搜索图片…',
+      'file.scanning': '正在扫描工作区…',
+      'file.count': '找到 {n} 张图片',
       'file.loading': '读取中…',
       'file.failed': '无法读取这个文件',
-      'file.empty': '这里没有图片文件',
+      'file.empty': '工作区里没有图片文件',
+      'file.noMatch': '没有匹配的图片',
       'status.working': '工作中',
       'status.approval': '待审批',
       'status.planReview': '待确认',
@@ -125,11 +128,14 @@ window.__ModuleLoader__.load({
       'file.title': 'Choose an icon file',
       'file.cancel': 'Cancel',
       'file.pick': 'Use this icon',
-      'file.up': 'Up',
       'file.hint': 'Pick an image to use as the icon',
+      'file.search': 'Search images…',
+      'file.scanning': 'Scanning the workspace…',
+      'file.count': '{n} images found',
       'file.loading': 'Reading…',
       'file.failed': 'Could not read this file',
-      'file.empty': 'No image files here',
+      'file.empty': 'No image files in this workspace',
+      'file.noMatch': 'No matching images',
       'status.working': 'Working',
       'status.approval': 'Approval',
       'status.planReview': 'Plan review',
@@ -222,15 +228,21 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-files-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--dsw-alias-border-l1)}',
       '.dsh-shelves-files-title{flex:none;font-size:13px;font-weight:600}',
       '.dsh-shelves-files-name{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-shelves-files-crumb{padding:7px 14px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:11px;color:var(--dsw-alias-label-secondary);word-break:break-all}',
       '.dsh-shelves-files-body{display:flex;flex:1 1 auto;min-height:0}',
-      '.dsh-shelves-files-list{flex:1 1 auto;min-width:0;overflow-y:auto;padding:6px}',
+      '.dsh-shelves-files-list{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0;padding:6px}',
+      '.dsh-shelves-files-search{display:flex;flex:none;align-items:center;gap:6px;height:30px;margin-bottom:6px;padding:0 8px;border-radius:7px;background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-files-search input{flex:1 1 auto;min-width:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}',
+      '.dsh-shelves-files-search input::placeholder{color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-files-rows{flex:1 1 auto;min-height:0;overflow-y:auto}',
+      '.dsh-shelves-files-count{margin-right:auto;align-self:center;font-size:11px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
       '.dsh-shelves-files-row{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:30px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-align:left;cursor:pointer}',
       '.dsh-shelves-files-row:hover{background:var(--dsw-alias-bg-layer-2)}',
       '.dsh-shelves-files-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
       '.dsh-shelves-files-row[aria-selected="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 16%,transparent)}',
       '.dsh-shelves-files-glyph{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-shelves-files-row-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-shelves-files-row-name{display:flex;align-items:baseline;min-width:0}',
+      '.dsh-shelves-files-row-dir{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-files-row-file{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dsh-shelves-files-row-size{margin-left:auto;flex:none;font-size:11px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
       '.dsh-shelves-files-preview{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;width:190px;padding:14px;border-left:1px solid var(--dsw-alias-border-l1)}',
       '.dsh-shelves-files-preview img{width:96px;height:96px;object-fit:contain;border-radius:8px}',
@@ -270,9 +282,8 @@ window.__ModuleLoader__.load({
       gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z',
       pin: 'M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z',
       unarchive: 'M3.5 5.5h17v3.5h-17zM5.5 9v9.5h13V9M12 15.5V10M9.5 12.5l2.5-2.5 2.5 2.5',
-      folder: 'M3.5 6.5h6l2 2h9v10h-17z',
       image: 'M3.5 5.5h17v13h-17zM7 14.5l3.5-3.5 3 3 2-2 2 2M8 9.5h.01',
-      up: 'M12 19V5M6 11l6-6 6 6',
+      search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5L20 20',
     };
 
     function glyph(name, size) {
@@ -577,50 +588,88 @@ window.__ModuleLoader__.load({
       );
     }
 
-    // A workspace-scoped browser for one image file. Directories navigate in place;
-    // an image is read once, previewed on the right, and confirmed by the footer.
+    // Directory basenames the scan never enters: dependency stores and build
+    // output, mirroring the host's own file-reference exclusions.
+    const SCAN_SKIP = new Set([
+      '.git', 'node_modules', 'dist', 'build', 'out', 'coverage', 'target',
+      '.next', '.nuxt', '.turbo', '.venv', '__pycache__', '.pytest_cache',
+      '.mypy_cache', '.gradle', 'vendor',
+    ]);
+    const SCAN_MAX_DIRS = 300;
+    const SCAN_MAX_FILES = 500;
+    const SCAN_BATCH = 8;
+
+    // Breadth-first so shallow paths win the budget: the workspace root and its
+    // public/ or assets/ folders are where an icon almost always lives.
+    async function scanWorkspaceImages(listFiles, sessionId, workspacePath, signal) {
+      const files = [];
+      let frontier = [''];
+      let visited = 0;
+      let error = null;
+      while (frontier.length > 0 && visited < SCAN_MAX_DIRS && files.length < SCAN_MAX_FILES) {
+        if (signal.aborted) return { files, error };
+        const batch = frontier.splice(0, SCAN_BATCH);
+        visited += batch.length;
+        const listings = await Promise.all(
+          batch.map(async (dir) => {
+            const target = dir === '' ? workspacePath : `${workspacePath}/${dir}`;
+            try {
+              return { dir, result: await listFiles(sessionId, target, signal) };
+            } catch (failure) {
+              return { dir, result: null, failure };
+            }
+          }),
+        );
+        for (const { dir, result, failure } of listings) {
+          if (result?.ok !== true) {
+            if (error === null) {
+              error = result?.failure?.message ?? result?.failure?.code ?? (failure instanceof Error ? failure.message : null);
+            }
+            continue;
+          }
+          for (const entry of result.value?.entries ?? []) {
+            const path = dir === '' ? entry.name : `${dir}/${entry.name}`;
+            if (entry.type === 'directory') {
+              if (!SCAN_SKIP.has(entry.name)) frontier.push(path);
+            } else if (entry.type === 'file' && iconMime(entry.name) !== null) {
+              files.push({ path, size: entry.size });
+            }
+          }
+        }
+      }
+      // Shallow images first: a root favicon or public/icon.png outranks a deep one.
+      const depthOf = (path) => path.split('/').length;
+      files.sort(
+        (left, right) =>
+          depthOf(left.path) - depthOf(right.path) ||
+          left.path.localeCompare(right.path, undefined, { numeric: true, sensitivity: 'base' }),
+      );
+      return { files, error };
+    }
+
+    // A flat list of every image the workspace offers, filtered by a search box,
+    // so no directory-by-directory hunting. Selecting one previews and confirms.
     function FileDialog(props) {
       const { workspaceId, workspacePath, sessionId, name, listFiles, readFileBytes, t, onClose, onPick } = props;
-      const [dir, setDir] = React.useState('');
-      const [listing, setListing] = React.useState({ status: 'loading', entries: [] });
+      const [scan, setScan] = React.useState({ status: 'loading', files: [], error: null });
+      const [query, setQuery] = React.useState('');
       const [selected, setSelected] = React.useState(null);
       const [preview, setPreview] = React.useState(null);
 
       React.useEffect(() => {
         const controller = new AbortController();
-        setListing({ status: 'loading', entries: [] });
-        const target = dir === '' ? workspacePath : `${workspacePath}/${dir}`;
-        Promise.resolve()
-          .then(() => listFiles(sessionId, target, controller.signal))
-          .then(
-            (result) => {
-              if (controller.signal.aborted) return;
-              if (result?.ok !== true) {
-                setListing({
-                  status: 'failed',
-                  entries: [],
-                  error: result?.failure?.message ?? result?.failure?.code ?? t('file.empty'),
-                });
-                return;
-              }
-              setListing({ status: 'ready', entries: Array.isArray(result.value?.entries) ? result.value.entries : [] });
-            },
-            (error) => {
-              if (controller.signal.aborted) return;
-              setListing({
-                status: 'failed',
-                entries: [],
-                error: error instanceof Error ? error.message : String(error),
-              });
-            },
-          );
+        setScan({ status: 'loading', files: [], error: null });
+        scanWorkspaceImages(listFiles, sessionId, workspacePath, controller.signal).then(
+          (result) => {
+            if (!controller.signal.aborted) setScan({ status: 'ready', files: result.files, error: result.error });
+          },
+          (error) => {
+            if (controller.signal.aborted) return;
+            setScan({ status: 'failed', files: [], error: error instanceof Error ? error.message : String(error) });
+          },
+        );
         return () => controller.abort();
-      }, [sessionId, workspacePath, dir, listFiles]);
-
-      React.useEffect(() => {
-        setSelected(null);
-        setPreview(null);
-      }, [dir]);
+      }, [sessionId, workspacePath, listFiles]);
 
       React.useEffect(() => {
         if (selected === null) return undefined;
@@ -644,66 +693,41 @@ window.__ModuleLoader__.load({
         return () => document.removeEventListener('keydown', onKeyDown);
       }, [onClose]);
 
-      const directories = [];
-      const images = [];
-      for (const entry of listing.entries) {
-        if (entry.type === 'directory') directories.push(entry);
-        else if (entry.type === 'file' && iconMime(entry.name) !== null) images.push(entry);
-      }
-      const byName = (left, right) => left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' });
-      directories.sort(byName);
-      images.sort(byName);
-
-      const row = (options) =>
-        h(
-          'button',
-          {
-            key: options.key,
-            type: 'button',
-            className: 'dsh-shelves-files-row',
-            'aria-selected': options.selected === true ? 'true' : undefined,
-            title: options.label,
-            onClick: options.onClick,
-          },
-          h('span', { className: 'dsh-shelves-files-glyph' }, glyph(options.glyph, 14)),
-          h('span', { className: 'dsh-shelves-files-row-name' }, options.label),
-          options.size === undefined ? null : h('span', { className: 'dsh-shelves-files-row-size' }, formatBytes(options.size)),
-        );
+      const needle = query.trim().toLowerCase();
+      const visible = needle === '' ? scan.files : scan.files.filter((file) => file.path.toLowerCase().includes(needle));
 
       const rows = [];
-      if (dir !== '') {
-        rows.push(row({ key: '..', label: t('file.up'), glyph: 'up', onClick: () => setDir(dir.slice(0, Math.max(0, dir.lastIndexOf('/')))) }));
-      }
-      for (const entry of directories) {
-        rows.push(
-          row({
-            key: `d:${entry.name}`,
-            label: entry.name,
-            glyph: 'folder',
-            onClick: () => setDir(dir === '' ? entry.name : `${dir}/${entry.name}`),
-          }),
-        );
-      }
-      for (const entry of images) {
-        rows.push(
-          row({
-            key: `f:${entry.name}`,
-            label: entry.name,
-            glyph: 'image',
-            size: entry.size,
-            selected: selected?.name === entry.name,
-            onClick: () => setSelected({ name: entry.name, path: dir === '' ? entry.name : `${dir}/${entry.name}` }),
-          }),
-        );
-      }
-      if (rows.length === 0) {
-        rows.push(
-          h(
-            'div',
-            { key: 'empty', className: 'dsh-shelves-files-empty' },
-            listing.status === 'loading' ? t('file.loading') : (listing.error ?? t('file.empty')),
-          ),
-        );
+      if (scan.status === 'loading') {
+        rows.push(h('div', { key: 'loading', className: 'dsh-shelves-files-empty' }, t('file.scanning')));
+      } else if (visible.length === 0) {
+        const empty = scan.files.length > 0 ? t('file.noMatch') : (scan.error ?? t('file.empty'));
+        rows.push(h('div', { key: 'empty', className: 'dsh-shelves-files-empty' }, empty));
+      } else {
+        for (const file of visible) {
+          const slash = file.path.lastIndexOf('/');
+          const dir = slash < 0 ? '' : file.path.slice(0, slash + 1);
+          rows.push(
+            h(
+              'button',
+              {
+                key: file.path,
+                type: 'button',
+                className: 'dsh-shelves-files-row',
+                'aria-selected': selected?.path === file.path ? 'true' : undefined,
+                title: file.path,
+                onClick: () => setSelected(file),
+              },
+              h('span', { className: 'dsh-shelves-files-glyph' }, glyph('image', 14)),
+              h(
+                'span',
+                { className: 'dsh-shelves-files-row-name' },
+                dir === '' ? null : h('span', { className: 'dsh-shelves-files-row-dir' }, dir),
+                h('span', { className: 'dsh-shelves-files-row-file' }, file.path.slice(slash + 1)),
+              ),
+              h('span', { className: 'dsh-shelves-files-row-size' }, formatBytes(file.size)),
+            ),
+          );
+        }
       }
 
       let previewContent;
@@ -716,7 +740,7 @@ window.__ModuleLoader__.load({
       } else {
         previewContent = [
           h('img', { key: 'image', src: preview.url, alt: '' }),
-          h('span', { key: 'name', className: 'dsh-shelves-files-preview-name' }, selected.name),
+          h('span', { key: 'name', className: 'dsh-shelves-files-preview-name' }, selected.path),
         ];
       }
 
@@ -737,16 +761,39 @@ window.__ModuleLoader__.load({
             h('span', { className: 'dsh-shelves-files-title' }, t('file.title')),
             h('span', { className: 'dsh-shelves-files-name' }, name),
           ),
-          h('div', { className: 'dsh-shelves-files-crumb' }, dir === '' ? name : `${name} / ${dir}`),
           h(
             'div',
             { className: 'dsh-shelves-files-body' },
-            h('div', { className: 'dsh-shelves-files-list' }, rows),
+            h(
+              'div',
+              { className: 'dsh-shelves-files-list' },
+              h(
+                'div',
+                { className: 'dsh-shelves-files-search' },
+                h('span', { className: 'dsh-shelves-files-glyph' }, glyph('search', 13)),
+                h('input', {
+                  autoFocus: true,
+                  type: 'text',
+                  value: query,
+                  placeholder: t('file.search'),
+                  'aria-label': t('file.search'),
+                  onChange: (event) => setQuery(event.target.value),
+                }),
+              ),
+              h('div', { className: 'dsh-shelves-files-rows' }, rows),
+            ),
             h('div', { className: 'dsh-shelves-files-preview' }, previewContent),
           ),
           h(
             'div',
             { className: 'dsh-shelves-files-foot' },
+            h(
+              'span',
+              { className: 'dsh-shelves-files-count' },
+              scan.status === 'loading'
+                ? t('file.scanning')
+                : t('file.count', { n: visible.length }),
+            ),
             h('button', { type: 'button', className: 'dsh-shelves-files-btn', onClick: onClose }, t('file.cancel')),
             h(
               'button',
