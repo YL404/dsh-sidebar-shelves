@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Sidebar Session Cards",
-    "description": "Replaces the sidebar session list with two-line cards: a project icon per workspace (a monogram, an emoji, a square image, or an Icon Composer .icon package), pinning, manual or after-N-days archiving, running and waiting status markers, running background-job and subagent counts, a terminal marker, and automatic sorting by the latest input."
+    "description": "Replaces the sidebar session list with two-line cards: a project icon per workspace (a monogram, an emoji, a square image, or an Icon Composer .icon package), pinning, manual or after-N-days archiving, running and waiting status markers, running background-job and subagent counts, a terminal marker, automatic sorting by the latest input, and a right-click context menu on each card."
   }
 }
