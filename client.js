@@ -15,7 +15,9 @@
  *
  * The composer's workspace menu is the second occupant: it draws each Workspace
  * with the same project tile and orders them by their newest session, so the
- * sidebar and the picker share one icon set and one recency rule.
+ * sidebar and the picker share one icon set and one recency rule. The third is
+ * the conversation header's leading seat, which carries the open Session's
+ * Workspace tile just before its title.
  */
 window.__ModuleLoader__.load({
   id: '@local/dsh-sidebar-shelves',
@@ -228,17 +230,25 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-action:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
       '.dsh-shelves-action-pinned{color:var(--dsw-alias-state-business-primary)}',
       '.dsh-shelves-pin{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-state-business-primary)}',
-      '.dsh-shelves-proj,.dsh-shelves-menuproj{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:14px;height:14px;margin:0;padding:0;border:0;border-radius:22%;overflow:hidden;background:color-mix(in srgb,var(--dsh-pi) 14%,transparent);color:var(--dsh-pi);font:inherit}',
+      '.dsh-shelves-proj,.dsh-shelves-menuproj,.dsh-shelves-headtile{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:14px;height:14px;margin:0;padding:0;border:0;border-radius:22%;overflow:hidden;background:color-mix(in srgb,var(--dsh-pi) 14%,transparent);color:var(--dsh-pi);font:inherit}',
       '.dsh-shelves-proj{cursor:pointer}',
       '.dsh-shelves-proj:hover{background:color-mix(in srgb,var(--dsh-pi) 26%,transparent)}',
       // An emoji carries its own color, so its tile drops the tinted chip and
       // keeps only a neutral hover.
-      '.dsh-shelves-proj:has(.dsh-shelves-proj-emoji),.dsh-shelves-menuproj:has(.dsh-shelves-proj-emoji){background:transparent}',
+      '.dsh-shelves-proj:has(.dsh-shelves-proj-emoji),.dsh-shelves-menuproj:has(.dsh-shelves-proj-emoji),.dsh-shelves-headtile:has(.dsh-shelves-proj-emoji){background:transparent}',
       '.dsh-shelves-proj:has(.dsh-shelves-proj-emoji):hover{background:var(--dsw-alias-bg-layer-2)}',
       '.dsh-shelves-proj:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dsh-shelves-proj svg,.dsh-shelves-menuproj svg{display:block;width:14px;height:14px}',
-      '.dsh-shelves-proj text,.dsh-shelves-menuproj text{font-family:var(--dsh-font-family-code,ui-monospace,monospace)}',
+      '.dsh-shelves-proj text,.dsh-shelves-menuproj text,.dsh-shelves-headtile text{font-family:var(--dsh-font-family-code,ui-monospace,monospace)}',
       '.dsh-shelves-proj-emoji{font-size:11px;line-height:1}',
+      // The header tile leads the Session title, so it takes the title's scale.
+      '.dsh-shelves-headtile{width:16px;height:16px}',
+      '.dsh-shelves-headtile svg,.dsh-shelves-headtile .dsh-shelves-proj-img{display:block;width:16px;height:16px}',
+      '.dsh-shelves-headtile .dsh-shelves-proj-emoji{font-size:12px}',
+      // Collapsed, the main panel reaches the window corner and the frame owns
+      // that band with the traffic lights and shell controls: the tile steps
+      // aside rather than sitting under the chrome.
+      '[data-sidebar-collapsed] .dsh-shelves-headtile{display:none}',
       ...PROJECT_COLORS.flatMap(([name, light, dark]) => [
         `.dsh-shelves-pi-${name}{--dsh-pi:${light}}`,
         `body[data-ds-dark-theme] .dsh-shelves-pi-${name}{--dsh-pi:${dark}}`,
@@ -876,6 +886,49 @@ window.__ModuleLoader__.load({
         'span',
         { className: `dsh-shelves-menuproj dsh-shelves-pi-${props.icon.color}`, 'aria-hidden': true },
         h(ProjectFace, props),
+      );
+    }
+
+    // The conversation header's leading seat: the Session's Workspace tile, just
+    // before its title. The seat is root-scoped, so the Session is the one the
+    // main view retains — the same rule the sidebar highlights by.
+    function HeaderTile(props) {
+      const { useSessions, useWorkspaces, readFileBytes } = props;
+      // Selecting the id, not the snapshot: the header is always mounted, so a
+      // session tick must not re-render it unless the open Session changed.
+      const currentId = useSessions((state) => {
+        const byId = state?.byId ?? {};
+        for (const id of Object.keys(byId)) {
+          if ((byId[id]?.retainedBy?.mainView ?? 0) > 0) return id;
+        }
+        return undefined;
+      });
+      const workspaces = useWorkspaces((state) => state.items);
+      const icons = React.useSyncExternalStore(iconsStore.subscribe, iconsStore.get);
+      const workspace = React.useMemo(
+        () => (currentId === undefined
+          ? undefined
+          : workspaces.find((item) => (item.sessionIds ?? []).includes(currentId))),
+        [currentId, workspaces],
+      );
+      if (workspace === undefined) return null;
+      const name = workspaceIconName(workspace);
+      const icon = projectIcon(name, icons[workspace.workspaceId]);
+      return h(
+        'span',
+        {
+          className: `dsh-shelves-headtile dsh-shelves-pi-${icon.color}`,
+          role: 'img',
+          'aria-label': name,
+          title: name,
+        },
+        h(ProjectFace, {
+          icon,
+          workspaceId: workspace.workspaceId,
+          workspacePath: workspace.path ?? '',
+          sessionId: currentId,
+          readFileBytes,
+        }),
       );
     }
 
@@ -2007,6 +2060,8 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'uiWorkspace', 'remote', 'remote.workspaceFiles', 'workspaces'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'sidebar-shelves: dictionaries');
+        const readFileBytes = (sessionId, path, length, signal) =>
+          ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length } }, signal);
         ctx.slots.inject('sidebar.workspaces', () =>
           ctx.slots.register(
             {
@@ -2019,11 +2074,16 @@ window.__ModuleLoader__.load({
                 unarchiveSession: (id) => ctx.uiWorkspace.unarchiveSession(id),
                 getOpenTabs: () => ctx.get('sidebarRight')?.openTabs,
                 listFiles: (sessionId, path, signal) => ctx.remote.workspaceFiles.list(sessionId, path, signal),
-                readFileBytes: (sessionId, path, length, signal) =>
-                  ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length } }, signal),
+                readFileBytes,
               }),
             },
             Shelves,
+          ),
+        );
+        ctx.slots.inject('conversation.header.leading', () =>
+          ctx.slots.register(
+            { name: 'conversation.header.leading', locale: NS, inject: () => ({ readFileBytes }) },
+            HeaderTile,
           ),
         );
         ctx.slots.inject('conversation.hero.workspace', () =>
@@ -2040,8 +2100,7 @@ window.__ModuleLoader__.load({
                   const desktop = globalThis.__DSH_DIRECTORY_PICKER__;
                   return desktop === undefined ? ctx.uiWorkspace.pickDirectory() : desktop.pick();
                 },
-                readFileBytes: (sessionId, path, length, signal) =>
-                  ctx.remote.workspaceFiles.readBytes(sessionId, path, { range: { length } }, signal),
+                readFileBytes,
               }),
             },
             WorkspaceMenu,
