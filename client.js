@@ -68,6 +68,10 @@ window.__ModuleLoader__.load({
       bmp: 'image/bmp',
     };
     const MAX_ICON_BYTES = 2 * 1024 * 1024;
+    // An Icon Composer package is a folder, not an image: icon.json names the
+    // background and the layer assets, which are composited on a canvas.
+    const ICON_CANVAS = 256;
+    const ICON_SPEC_BYTES = 256 * 1024;
     // One object URL per Workspace file, shared by every row and the picker.
     const ICON_URLS = new Map();
     const ICON_LOADS = new Map();
@@ -92,13 +96,13 @@ window.__ModuleLoader__.load({
       'file.title': '选择图标文件',
       'file.cancel': '取消',
       'file.pick': '使用此图标',
-      'file.hint': '选一张方形图片作为图标',
-      'file.search': '搜索图片…',
+      'file.hint': '选一个方形图标',
+      'file.search': '搜索图标…',
       'file.scanning': '正在扫描工作区…',
       'file.checking': '正在检查尺寸 {done}/{total}',
-      'file.count': '{n} 张方形图片',
-      'file.empty': '工作区里没有方形图片',
-      'file.noMatch': '没有匹配的图片',
+      'file.count': '{n} 个方形图标',
+      'file.empty': '工作区里没有方形图标',
+      'file.noMatch': '没有匹配的图标',
       'status.working': '工作中',
       'status.approval': '待审批',
       'status.planReview': '待确认',
@@ -127,13 +131,13 @@ window.__ModuleLoader__.load({
       'file.title': 'Choose an icon file',
       'file.cancel': 'Cancel',
       'file.pick': 'Use this icon',
-      'file.hint': 'Pick a square image as the icon',
-      'file.search': 'Search images…',
+      'file.hint': 'Pick a square icon',
+      'file.search': 'Search icons…',
       'file.scanning': 'Scanning the workspace…',
       'file.checking': 'Checking sizes {done}/{total}',
-      'file.count': '{n} square images',
-      'file.empty': 'No square images in this workspace',
-      'file.noMatch': 'No matching images',
+      'file.count': '{n} square icons',
+      'file.empty': 'No square icons in this workspace',
+      'file.noMatch': 'No matching icons',
       'status.working': 'Working',
       'status.approval': 'Approval',
       'status.planReview': 'Plan review',
@@ -422,6 +426,147 @@ window.__ModuleLoader__.load({
       return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     }
 
+    function currentAppearance() {
+      return document.body?.hasAttribute('data-ds-dark-theme') === true ? 'dark' : 'light';
+    }
+
+    // The theme flips an attribute on <body>; package icons carry a layer set per
+    // appearance, so the tiles follow it without a reload.
+    const appearanceListeners = new Set();
+    let appearanceObserver = null;
+
+    function subscribeAppearance(onChange) {
+      if (appearanceObserver === null) {
+        appearanceObserver = new MutationObserver(() => {
+          for (const listener of appearanceListeners) listener();
+        });
+        appearanceObserver.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] });
+      }
+      appearanceListeners.add(onChange);
+      return () => appearanceListeners.delete(onChange);
+    }
+
+    function useAppearance() {
+      return React.useSyncExternalStore(subscribeAppearance, currentAppearance);
+    }
+
+    // A package icon keeps one render per appearance, because its layers can differ.
+    function iconKey(workspaceId, file, appearance) {
+      return file.endsWith('.icon') ? `${workspaceId}:${file}:${appearance}` : `${workspaceId}:${file}`;
+    }
+
+    function parseIconColor(value) {
+      if (typeof value !== 'string') return null;
+      const colon = value.indexOf(':');
+      if (colon < 0) return null;
+      const space = value.slice(0, colon);
+      if (space !== 'srgb' && space !== 'display-p3') return null;
+      const parts = value.slice(colon + 1).split(',').map(Number);
+      if (parts.length < 3 || parts.some((part) => !Number.isFinite(part))) return null;
+      const [red, green, blue, alpha = 1] = parts;
+      return `rgba(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}, ${alpha})`;
+    }
+
+    function iconFillStyle(context, fill, size) {
+      if (fill === null || typeof fill !== 'object') return null;
+      if (typeof fill.solid === 'string') return parseIconColor(fill.solid);
+      if (!Array.isArray(fill['linear-gradient'])) return null;
+      const stops = fill['linear-gradient'].map(parseIconColor);
+      if (stops.length < 2 || stops.some((stop) => stop === null)) return null;
+      const orientation = fill.orientation ?? {};
+      const gradient = context.createLinearGradient(
+        (orientation.start?.x ?? 0.5) * size,
+        (orientation.start?.y ?? 0) * size,
+        (orientation.stop?.x ?? 0.5) * size,
+        (orientation.stop?.y ?? 1) * size,
+      );
+      stops.forEach((color, index) => gradient.addColorStop(index / (stops.length - 1), color));
+      return gradient;
+    }
+
+    // A layer's hidden-specializations apply in order, the last matching entry winning.
+    function layerHidden(layer, appearance) {
+      if (layer?.hidden === true) return true;
+      const specs = layer?.['hidden-specializations'];
+      if (!Array.isArray(specs)) return false;
+      let hidden = false;
+      for (const spec of specs) {
+        if (spec === null || typeof spec !== 'object') continue;
+        if (spec.platform !== undefined) continue;
+        if (spec.appearance !== undefined && spec.appearance !== appearance) continue;
+        if (typeof spec.value === 'boolean') hidden = spec.value;
+      }
+      return hidden;
+    }
+
+    function loadImageElement(url) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('image decode failed'));
+        image.src = url;
+      });
+    }
+
+    // Composite one Icon Composer package: gradient or solid fill, then each visible
+    // layer at its scale and translation on a 1024-point grid. Glass, shadow, and
+    // specular effects are left out; at 14px they do not read.
+    async function renderIconPackage(readFileBytes, sessionId, absolutePath, appearance) {
+      const specRead = await readFileBytes(sessionId, `${absolutePath}/icon.json`, ICON_SPEC_BYTES);
+      if (specRead?.ok !== true) return null;
+      let spec;
+      try {
+        spec = JSON.parse(new TextDecoder().decode(specRead.value.data));
+      } catch {
+        return null;
+      }
+      if (spec === null || typeof spec !== 'object' || !Array.isArray(spec.groups)) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = ICON_CANVAS;
+      canvas.height = ICON_CANVAS;
+      const context = canvas.getContext('2d');
+      if (context === null) return null;
+      const background = iconFillStyle(context, spec.fill, ICON_CANVAS);
+      if (background !== null) {
+        context.fillStyle = background;
+        context.fillRect(0, 0, ICON_CANVAS, ICON_CANVAS);
+      }
+      const ratio = ICON_CANVAS / 1024;
+      for (const group of spec.groups) {
+        if (group === null || typeof group !== 'object' || group.hidden === true) continue;
+        for (const layer of group.layers ?? []) {
+          if (layerHidden(layer, appearance)) continue;
+          const assetName = layer?.['image-name'];
+          if (typeof assetName !== 'string' || assetName === '') continue;
+          const asset = await readFileBytes(sessionId, `${absolutePath}/Assets/${assetName}`, MAX_ICON_BYTES);
+          if (asset?.ok !== true) continue;
+          const mime = iconMime(assetName) ?? 'application/octet-stream';
+          const url = URL.createObjectURL(new Blob([asset.value.data], { type: mime }));
+          try {
+            const image = await loadImageElement(url);
+            const scale = (typeof layer.position?.scale === 'number' ? layer.position.scale : 1) * ratio;
+            const [translateX = 0, translateY = 0] = layer.position?.['translation-in-points'] ?? [];
+            const width = image.naturalWidth * scale;
+            const height = image.naturalHeight * scale;
+            if (width > 0 && height > 0) {
+              context.drawImage(
+                image,
+                ICON_CANVAS / 2 + translateX * ratio - width / 2,
+                ICON_CANVAS / 2 + translateY * ratio - height / 2,
+                width,
+                height,
+              );
+            }
+          } catch {
+            /* a layer that will not decode is skipped */
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+        }
+      }
+      return canvas.toDataURL('image/png');
+    }
+
     // One read per file: rows and the picker's preview share the object URL, and a
     // failed read is remembered so a broken path does not retry on every render.
     function iconUrlFor(key, load) {
@@ -445,6 +590,9 @@ window.__ModuleLoader__.load({
     }
 
     async function loadIconUrl(readFileBytes, sessionId, absolutePath) {
+      if (absolutePath.endsWith('.icon')) {
+        return renderIconPackage(readFileBytes, sessionId, absolutePath, currentAppearance());
+      }
       const mime = iconMime(absolutePath);
       if (mime === null) return null;
       const result = await readFileBytes(sessionId, absolutePath, MAX_ICON_BYTES);
@@ -540,8 +688,9 @@ window.__ModuleLoader__.load({
     // the monogram. The picker opens from the same tile either way.
     function ProjectTile(props) {
       const { icon, label, workspaceId, workspacePath, sessionId, readFileBytes, onOpen } = props;
+      const appearance = useAppearance();
       const absolutePath = icon.file === '' || readFileBytes === undefined ? null : `${workspacePath}/${icon.file}`;
-      const key = absolutePath === null ? null : `${workspaceId}:${icon.file}`;
+      const key = absolutePath === null ? null : iconKey(workspaceId, icon.file, appearance);
       const url = useIconUrl(key, () => loadIconUrl(readFileBytes, sessionId, absolutePath));
       let content;
       if (url !== null) {
@@ -626,7 +775,8 @@ window.__ModuleLoader__.load({
           for (const entry of result.value?.entries ?? []) {
             const path = dir === '' ? entry.name : `${dir}/${entry.name}`;
             if (entry.type === 'directory') {
-              if (!SCAN_SKIP.has(entry.name)) frontier.push(path);
+              if (entry.name.endsWith('.icon')) files.push({ path, package: true });
+              else if (!SCAN_SKIP.has(entry.name)) frontier.push(path);
             } else if (entry.type === 'file' && iconMime(entry.name) !== null) {
               files.push({ path, size: entry.size });
             }
@@ -746,6 +896,18 @@ window.__ModuleLoader__.load({
       return Math.abs(width - height) <= Math.max(1, Math.round(Math.max(width, height) * SQUARE_TOLERANCE));
     }
 
+    // A package counts as square when its spec parses; its canvas is 1024 points.
+    async function packageDimensions(readFileBytes, sessionId, absolutePath, signal) {
+      try {
+        const read = await readFileBytes(sessionId, `${absolutePath}/icon.json`, ICON_SPEC_BYTES, signal);
+        if (read?.ok !== true) return null;
+        const spec = JSON.parse(new TextDecoder().decode(read.value.data));
+        return Array.isArray(spec?.groups) ? { width: 1024, height: 1024 } : null;
+      } catch {
+        return null;
+      }
+    }
+
     // Filter in bounded waves so a 500-image workspace keeps the dialog responsive;
     // results are remembered per path and byte size, so reopening is instant.
     async function squareImages(readFileBytes, sessionId, workspacePath, files, signal, onProgress) {
@@ -756,14 +918,18 @@ window.__ModuleLoader__.load({
         while (cursor < files.length && !signal.aborted) {
           const file = files[cursor];
           cursor += 1;
-          const key = `${file.path}:${file.size ?? 0}`;
+          const key = `${file.path}:${file.package === true ? 'package' : (file.size ?? 0)}`;
           let dimensions = SQUARE_CACHE.get(key);
           if (dimensions === undefined) {
-            try {
-              const read = await readFileBytes(sessionId, `${workspacePath}/${file.path}`, ICON_HEADER_BYTES, signal);
-              dimensions = read?.ok === true ? imageDimensions(read.value.data) : null;
-            } catch {
-              dimensions = null;
+            if (file.package === true) {
+              dimensions = await packageDimensions(readFileBytes, sessionId, `${workspacePath}/${file.path}`, signal);
+            } else {
+              try {
+                const read = await readFileBytes(sessionId, `${workspacePath}/${file.path}`, ICON_HEADER_BYTES, signal);
+                dimensions = read?.ok === true ? imageDimensions(read.value.data) : null;
+              } catch {
+                dimensions = null;
+              }
             }
             SQUARE_CACHE.set(key, dimensions);
           }
@@ -785,6 +951,7 @@ window.__ModuleLoader__.load({
     // so a large result set never downloads everything up front.
     function FileThumb(props) {
       const { workspaceId, workspacePath, sessionId, file, readFileBytes } = props;
+      const appearance = useAppearance();
       const node = React.useRef(null);
       const [visible, setVisible] = React.useState(false);
       React.useEffect(() => {
@@ -806,7 +973,7 @@ window.__ModuleLoader__.load({
         observer.observe(element);
         return () => observer.disconnect();
       }, [visible]);
-      const key = visible ? `${workspaceId}:${file.path}` : null;
+      const key = visible ? iconKey(workspaceId, file.path, appearance) : null;
       const url = useIconUrl(key, () => loadIconUrl(readFileBytes, sessionId, `${workspacePath}/${file.path}`));
       return h(
         'span',
