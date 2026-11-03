@@ -31,6 +31,8 @@ window.__ModuleLoader__.load({
     const SETTINGS_KEY = 'dsh:sidebar-shelves:settings';
     const PINNED_KEY = 'dsh:sidebar-shelves:pinned';
     const ICONS_KEY = 'dsh:sidebar-shelves:icons';
+    // Mirrors the Host half's projection key; the Host folds owned jobs there.
+    const JOB_ACTIVITY_KEY = 'sidebarShelvesJobActivity';
     const AUTO_ARCHIVE_CHOICES = [3, 7, 14, 30];
 
     // t3code's project palette: the same name always lands on the same slot, so a
@@ -118,6 +120,12 @@ window.__ModuleLoader__.load({
       'status.planReview': '待确认',
       'status.answer': '待回答',
       'status.done': '已完成',
+      'activity.jobs.one': '{n} 个后台任务在运行',
+      'activity.jobs.other': '{n} 个后台任务在运行',
+      'activity.subagents.one': '{n} 个子代理正在工作',
+      'activity.subagents.other': '{n} 个子代理正在工作',
+      'activity.detail': '：{items}',
+      'activity.comma': '、',
       'terminal.open': '有终端',
       'time.now': '刚刚',
     };
@@ -157,6 +165,12 @@ window.__ModuleLoader__.load({
       'status.planReview': 'Plan review',
       'status.answer': 'Answer',
       'status.done': 'Done',
+      'activity.jobs.one': '{n} background job running',
+      'activity.jobs.other': '{n} background jobs running',
+      'activity.subagents.one': '{n} subagent working',
+      'activity.subagents.other': '{n} subagents working',
+      'activity.detail': ': {items}',
+      'activity.comma': ', ',
       'terminal.open': 'Terminal open',
       'time.now': 'now',
     };
@@ -194,6 +208,11 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-row-archived .dsh-shelves-title{font-weight:400;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-metaline{display:flex;align-items:center;gap:6px;min-width:0;min-height:16px;margin-top:2px;font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-ws{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-shelves-badge{display:inline-flex;flex:none;align-items:center;gap:2px;height:15px;padding:0 4px 0 3px;border-radius:4px;background:color-mix(in srgb,var(--dsw-alias-label-primary) 8%,transparent);color:var(--dsw-alias-label-secondary);font-size:10px;line-height:15px;font-variant-numeric:tabular-nums}',
+      '.dsh-shelves-badge svg{display:block;flex:none}',
+      '.dsh-shelves-badge-jobs{color:var(--dsw-alias-brand-primary)}',
+      '.dsh-shelves-badge-subagents{color:var(--dsw-alias-state-business-primary)}',
+      '.dsh-shelves-badge-n{color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-term{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-state-business-primary)}',
       '.dsh-shelves-time{margin-left:auto;flex:none;font-size:12px;font-variant-numeric:tabular-nums;opacity:.7;transition:opacity .12s ease}',
       '.dsh-shelves-status{display:inline-flex;align-items:center;justify-content:center;transition:opacity .12s ease}',
@@ -293,6 +312,8 @@ window.__ModuleLoader__.load({
       done: 'M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM8.5 12.4l2.4 2.4 4.6-4.8',
       archive: 'M3.5 5.5h17v3.5h-17zM5.5 9v9.5h13V9M9.5 12.5h5',
       terminal: 'M3.5 5.5h17v13h-17zM7.5 10l2.5 2.5-2.5 2.5M13 14.5h3.5',
+      jobs: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2',
+      robot: 'M9 3.5v2M15 3.5v2M5 6.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM8 11h1.5M14.5 11H16M9.5 14.5h5',
       chevron: 'M9 6l6 6-6 6',
       gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H2.9a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z',
       pin: 'M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z',
@@ -680,6 +701,36 @@ window.__ModuleLoader__.load({
 
     function deriveRows(list, statuses, workspaces, currentId, archived, pinned, icons) {
       const byId = list.byId ?? {};
+      const catalogs = list.projectionsBySession ?? {};
+      // Direct subagent children come from the durable catalog and from live
+      // child rows; a child can appear in both, so key by parent and child id.
+      const childParents = new Map();
+      const childLabels = new Map();
+      for (const [parentId, projection] of Object.entries(catalogs)) {
+        const catalog = projection?.values?.subagentCatalog;
+        if (!Array.isArray(catalog)) continue;
+        for (const child of catalog) {
+          if (child.mode === 'external') continue;
+          childParents.set(child.id, parentId);
+          if (typeof child.label === 'string' && child.label !== '') childLabels.set(child.id, child.label);
+        }
+      }
+      for (const child of Object.values(byId)) {
+        if (child.origin !== 'subagent' || child.parentId === undefined) continue;
+        childParents.set(child.id, child.parentId);
+        if (childLabels.has(child.id)) continue;
+        const label = child.title ?? child.displayTitle;
+        if (typeof label === 'string' && label !== '') childLabels.set(child.id, label);
+      }
+      const childRuns = new Map();
+      for (const [childId, parentId] of childParents) {
+        if ((statuses?.get?.(childId)?.running ?? byId[childId]?.running) !== true) continue;
+        let run = childRuns.get(parentId);
+        if (run === undefined) childRuns.set(parentId, (run = { count: 0, labels: [] }));
+        run.count += 1;
+        const label = childLabels.get(childId);
+        if (label !== undefined && run.labels.length < 3) run.labels.push(label);
+      }
       const rows = [];
       for (const id of list.ids ?? []) {
         const session = byId[id];
@@ -687,17 +738,13 @@ window.__ModuleLoader__.load({
         if (session.origin === 'subagent') continue;
         if (session.blank === true && id !== currentId) continue;
         const status = statuses?.get?.(id);
-        let childRunning = false;
-        const children = list.projectionsBySession?.[id]?.values?.subagentCatalog;
-        if (Array.isArray(children)) {
-          for (const child of children) {
-            if ((statuses?.get?.(child.id)?.running ?? byId[child.id]?.running) === true) {
-              childRunning = true;
-              break;
-            }
-          }
-        }
-        const running = (status?.running ?? session.running) === true || childRunning;
+        const childRun = childRuns.get(id);
+        const subagentsRunning = childRun?.count ?? 0;
+        // The control stream carries the live projection; the list block is the
+        // cold-session cache fallback.
+        const jobActivity = catalogs[id]?.values?.[JOB_ACTIVITY_KEY] ?? session.projectionValues?.[JOB_ACTIVITY_KEY];
+        const jobsRunning = typeof jobActivity?.running === 'number' && jobActivity.running > 0 ? jobActivity.running : 0;
+        const running = (status?.running ?? session.running) === true || subagentsRunning > 0;
         const kind = status?.pendingInteraction?.kind;
         const pending = kind === 'approval' || kind === 'plan-review' || kind === 'question' ? kind : undefined;
         const completed = status?.completionUnread === true;
@@ -717,6 +764,10 @@ window.__ModuleLoader__.load({
           pending,
           completed,
           running,
+          jobsRunning,
+          jobsLabels: Array.isArray(jobActivity?.labels) ? jobActivity.labels : [],
+          subagentsRunning,
+          subagentLabels: childRun?.labels ?? [],
         });
       }
       // Pinned sessions lead, then newest user input first, so a session you just
@@ -1465,7 +1516,7 @@ window.__ModuleLoader__.load({
         const now = Date.now();
         for (const row of rows) {
           if (row.archived || row.blank) continue;
-          if (row.running || row.pending !== undefined || row.completed) continue;
+          if (row.running || row.jobsRunning > 0 || row.pending !== undefined || row.completed) continue;
           if (row.id === currentId || unseen.has(row.id)) continue;
           if (row.updatedAtMs <= 0 || now - row.updatedAtMs <= days * DAY_MS) continue;
           if (attempted.current.has(row.id)) continue;
@@ -1483,7 +1534,7 @@ window.__ModuleLoader__.load({
 
       const active = rows.filter((row) => !row.archived);
       const archivedRows = rows.filter((row) => row.archived);
-      const attention = active.filter((row) => statusOf(row, unseen.has(row.id), t) !== undefined).length;
+      const attention = active.filter((row) => statusOf(row, unseen.has(row.id), t) !== undefined || row.jobsRunning > 0).length;
 
       const styles = h('style', { key: 'styles' }, css);
 
@@ -1536,6 +1587,31 @@ window.__ModuleLoader__.load({
           readFileBytes,
           onOpen: (event) => openIconPicker(row, event),
         });
+      };
+
+      // A count badge is additive to the exclusive status icon: a session can be
+      // waiting for approval and still own two background jobs.
+      const renderActivityBadge = (kind, count, labels) => {
+        if (count <= 0) return null;
+        const plural = count === 1 ? '.one' : '.other';
+        const base = t(`activity.${kind}${plural}`, { n: count });
+        const shown = labels
+          .map((label) => (typeof label === 'string' ? label.replace(/\s+/g, ' ').trim().slice(0, 60) : ''))
+          .filter((label) => label !== '')
+          .slice(0, 3);
+        const title = shown.length === 0 ? base : base + t('activity.detail', { items: shown.join(t('activity.comma')) });
+        return h(
+          'span',
+          {
+            key: `activity-${kind}`,
+            className: `dsh-shelves-badge dsh-shelves-badge-${kind}`,
+            role: 'img',
+            'aria-label': title,
+            title,
+          },
+          glyph(kind === 'jobs' ? 'jobs' : 'robot', 12),
+          h('span', { className: 'dsh-shelves-badge-n' }, count > 99 ? '99+' : String(count)),
+        );
       };
 
       const renderRow = (row) => {
@@ -1596,6 +1672,8 @@ window.__ModuleLoader__.load({
                 )
               : null,
             h('span', { className: 'dsh-shelves-ws' }, row.workspace),
+            renderActivityBadge('jobs', row.jobsRunning, row.jobsLabels),
+            renderActivityBadge('subagents', row.subagentsRunning, row.subagentLabels),
             terminalSessions.has(row.id)
               ? h(
                   'span',
