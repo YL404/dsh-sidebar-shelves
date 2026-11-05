@@ -39,6 +39,9 @@ window.__ModuleLoader__.load({
     // Mirrors the Host half's projection key; the Host folds owned jobs there.
     const JOB_ACTIVITY_KEY = 'sidebarShelvesJobActivity';
     const AUTO_ARCHIVE_CHOICES = [3, 7, 14, 30];
+    // The settings panel floats over the column instead of joining its flow, so
+    // its box is placed from the gear's own rect.
+    const SETTINGS_POPOVER_WIDTH = 232;
 
     // t3code's project palette: the same name always lands on the same slot, so a
     // project keeps its color without anything being stored. Light mode uses the
@@ -232,7 +235,7 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-gear{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;opacity:.6}',
       '.dsh-shelves-gear:hover,.dsh-shelves-gear[aria-expanded="true"]{opacity:1;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
       '.dsh-shelves-gear:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
-      '.dsh-shelves-settings{margin:4px 0 6px;padding:8px 10px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1)}',
+      '.dsh-shelves-settings{position:fixed;z-index:60;display:flex;flex-direction:column;box-sizing:border-box;padding:8px 10px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-overlay);box-shadow:0 10px 28px #00000033}',
       '.dsh-shelves-settings-title{margin-bottom:2px;font-size:11px;font-weight:500;letter-spacing:.03em;color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-setting{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px;font-size:12px;color:var(--dsw-alias-label-primary)}',
       '.dsh-shelves-select{position:relative;display:inline-flex;align-items:center}',
@@ -860,6 +863,37 @@ window.__ModuleLoader__.load({
       return undefined;
     }
 
+    // A floating panel closes on a click outside it, Escape, scroll or resize;
+    // Escape also returns focus to the control that opened it. `inside` names the
+    // panel and its trigger, so a click on either keeps the panel's own handler in
+    // charge of toggling it.
+    function useDismissFloating(open, setOpen, inside, openerRef) {
+      React.useEffect(() => {
+        if (!open) return undefined;
+        const close = () => setOpen(null);
+        const onPointerDown = (event) => {
+          const target = event.target;
+          if (target instanceof Element && target.closest(inside) !== null) return;
+          close();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') return;
+          close();
+          if (openerRef !== undefined) openerRef.current?.focus();
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+          document.removeEventListener('pointerdown', onPointerDown, true);
+          document.removeEventListener('keydown', onKeyDown);
+          window.removeEventListener('scroll', close, true);
+          window.removeEventListener('resize', close);
+        };
+      }, [open, setOpen, inside, openerRef]);
+    }
+
     function useIconUrl(key, load) {
       const [url, setUrl] = React.useState(() => (key === null ? null : (ICON_URLS.get(key) ?? null)));
       React.useEffect(() => {
@@ -1461,7 +1495,10 @@ window.__ModuleLoader__.load({
       const [settings, setSettings] = React.useState(() => normalizeSettings(readJson(SETTINGS_KEY, {})));
       const [pinned, setPinned] = React.useState(() => normalizeMap(readJson(PINNED_KEY, {})));
       const icons = React.useSyncExternalStore(iconsStore.subscribe, iconsStore.get);
-      const [settingsOpen, setSettingsOpen] = React.useState(false);
+      // The settings panel floats over the column, so it keeps only its fixed
+      // box; the gear is the control it is anchored to and returns focus to.
+      const [settingsPopover, setSettingsPopover] = React.useState(null);
+      const settingsGearRef = React.useRef(null);
       const [archivedOpen, setArchivedOpen] = React.useState(false);
       const [iconPicker, setIconPicker] = React.useState(null);
       const [filePicker, setFilePicker] = React.useState(null);
@@ -1490,9 +1527,13 @@ window.__ModuleLoader__.load({
         return () => window.clearInterval(id);
       }, []);
 
-      // The rail renders no cards, so a pending menu must not survive a collapse.
+      // The rail renders no cards, so a pending menu or panel must not survive a
+      // collapse.
       React.useEffect(() => {
-        if (!wide) setCardMenu(null);
+        if (!wide) {
+          setCardMenu(null);
+          setSettingsPopover(null);
+        }
       }, [wide]);
 
       const updateSettings = (patch) =>
@@ -1542,28 +1583,24 @@ window.__ModuleLoader__.load({
         setIconPicker(null);
       };
 
-      React.useEffect(() => {
-        if (iconPicker === null) return undefined;
-        const close = () => setIconPicker(null);
-        const onPointerDown = (event) => {
-          const target = event.target;
-          if (target instanceof Element && target.closest('.dsh-shelves-iconpicker, .dsh-shelves-proj') !== null) return;
-          close();
-        };
-        const onKeyDown = (event) => {
-          if (event.key === 'Escape') close();
-        };
-        document.addEventListener('pointerdown', onPointerDown, true);
-        document.addEventListener('keydown', onKeyDown);
-        window.addEventListener('scroll', close, true);
-        window.addEventListener('resize', close);
-        return () => {
-          document.removeEventListener('pointerdown', onPointerDown, true);
-          document.removeEventListener('keydown', onKeyDown);
-          window.removeEventListener('scroll', close, true);
-          window.removeEventListener('resize', close);
-        };
-      }, [iconPicker]);
+      // The shelf sits at the bottom of the column, so the panel grows upward from
+      // the gear: anchoring its bottom edge needs no height estimate.
+      const openSettings = (element) => {
+        const rect = element.getBoundingClientRect();
+        const left = Math.max(
+          8,
+          Math.min(rect.right - SETTINGS_POPOVER_WIDTH, window.innerWidth - SETTINGS_POPOVER_WIDTH - 8),
+        );
+        setSettingsPopover({ left, bottom: Math.max(8, window.innerHeight - rect.top + 6) });
+      };
+
+      useDismissFloating(iconPicker !== null, setIconPicker, '.dsh-shelves-iconpicker, .dsh-shelves-proj');
+      useDismissFloating(
+        settingsPopover !== null,
+        setSettingsPopover,
+        '.dsh-shelves-settings, .dsh-shelves-gear',
+        settingsGearRef,
+      );
 
       const currentId = React.useMemo(() => {
         const byId = list.byId ?? {};
@@ -1578,6 +1615,10 @@ window.__ModuleLoader__.load({
         () => deriveRows(list, statuses, workspaceIndex(items), currentId, archived, pinned, icons),
         [list, statuses, items, currentId, archived, pinned, icons],
       );
+      // The gear leaves with the last card, so its panel must not outlive it.
+      React.useEffect(() => {
+        if (rows.length === 0) setSettingsPopover(null);
+      }, [rows.length]);
       // Archiving drops the pin with the session, so unarchiving never brings
       // back a pin that could not be seen or cleared while it was archived.
       React.useEffect(() => {
@@ -2091,46 +2132,19 @@ window.__ModuleLoader__.load({
               'button',
               {
                 type: 'button',
+                ref: settingsGearRef,
                 className: 'dsh-shelves-gear',
                 'aria-label': t('settings.label'),
-                'aria-expanded': settingsOpen ? 'true' : 'false',
+                'aria-expanded': settingsPopover !== null ? 'true' : 'false',
+                'aria-haspopup': 'dialog',
                 title: t('settings.label'),
-                onClick: () => setSettingsOpen(!settingsOpen),
+                onClick: (event) =>
+                  settingsPopover === null ? openSettings(event.currentTarget) : setSettingsPopover(null),
               },
               glyph('gear', 14),
             ),
           ),
         );
-        if (settingsOpen) {
-          bottom.push(
-            h(
-              'div',
-              { key: 'settings', className: 'dsh-shelves-settings' },
-              h('div', { className: 'dsh-shelves-settings-title' }, t('settings.label')),
-              h(
-                'div',
-                { className: 'dsh-shelves-setting' },
-                h('span', null, t('settings.autoArchive')),
-                h(
-                  'span',
-                  { className: 'dsh-shelves-select' },
-                  h(
-                    'select',
-                    {
-                      'aria-label': t('settings.autoArchive'),
-                      value: settings.autoArchiveDays === null ? '' : String(settings.autoArchiveDays),
-                      onChange: (event) =>
-                        updateSettings({ autoArchiveDays: event.target.value === '' ? null : Number(event.target.value) }),
-                    },
-                    h('option', { value: '' }, t('settings.off')),
-                    AUTO_ARCHIVE_CHOICES.map((days) => h('option', { key: days, value: String(days) }, t('settings.days', { n: days }))),
-                  ),
-                  h('span', { className: 'dsh-shelves-select-chevron' }, glyph('chevron', 12)),
-                ),
-              ),
-            ),
-          );
-        }
         if (archivedOpen) {
           bottom.push(
             h(
@@ -2213,6 +2227,43 @@ window.__ModuleLoader__.load({
         );
       };
 
+      // Anchored above the gear, so opening it never reflows the column.
+      const renderSettingsPopover = () => {
+        if (settingsPopover === null) return null;
+        return h(
+          'div',
+          {
+            className: 'dsh-shelves-settings',
+            style: { left: settingsPopover.left, bottom: settingsPopover.bottom, width: SETTINGS_POPOVER_WIDTH },
+            role: 'dialog',
+            'aria-label': t('settings.label'),
+          },
+          h('div', { className: 'dsh-shelves-settings-title' }, t('settings.label')),
+          h(
+            'div',
+            { className: 'dsh-shelves-setting' },
+            h('span', null, t('settings.autoArchive')),
+            h(
+              'span',
+              { className: 'dsh-shelves-select' },
+              h(
+                'select',
+                {
+                  'aria-label': t('settings.autoArchive'),
+                  autoFocus: true,
+                  value: settings.autoArchiveDays === null ? '' : String(settings.autoArchiveDays),
+                  onChange: (event) =>
+                    updateSettings({ autoArchiveDays: event.target.value === '' ? null : Number(event.target.value) }),
+                },
+                h('option', { value: '' }, t('settings.off')),
+                AUTO_ARCHIVE_CHOICES.map((days) => h('option', { key: days, value: String(days) }, t('settings.days', { n: days }))),
+              ),
+              h('span', { className: 'dsh-shelves-select-chevron' }, glyph('chevron', 12)),
+            ),
+          ),
+        );
+      };
+
       return h(
         React.Fragment,
         null,
@@ -2222,6 +2273,7 @@ window.__ModuleLoader__.load({
           { key: 'root', className: 'dsh-shelves-root' },
           h('div', { className: 'dsh-shelves-scroll' }, h('div', { className: 'dsh-shelves-stack' }, stack)),
           renderIconPicker(),
+          renderSettingsPopover(),
           filePicker === null
             ? null
             : h(FileDialog, {
