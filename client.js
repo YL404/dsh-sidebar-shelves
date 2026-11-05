@@ -109,6 +109,13 @@ window.__ModuleLoader__.load({
       'action.copyIdDone': '已复制会话 ID',
       'action.copyIdFailed': '复制会话 ID 失败',
       'action.forkFailed': '无法分叉会话',
+      'action.removeProject': '移除项目',
+      'remove.title': '移除项目',
+      'remove.desc': '将把“{name}”从侧边栏的项目中移除。文件夹与会话记录会保留，其会话将显示为未分组。',
+      'remove.pending': '正在移除项目…',
+      'remove.confirm': '移除',
+      'remove.cancel': '取消',
+      'remove.done': '已移除项目',
       'rename.title': '重命名会话',
       'rename.confirm': '确定',
       'rename.cancel': '取消',
@@ -164,6 +171,13 @@ window.__ModuleLoader__.load({
       'action.copyIdDone': 'Session ID copied',
       'action.copyIdFailed': 'Could not copy Session ID',
       'action.forkFailed': 'Could not fork session',
+      'action.removeProject': 'Remove project',
+      'remove.title': 'Remove project',
+      'remove.desc': 'This removes “{name}” from the sidebar projects. The folder and its sessions are kept; its sessions become ungrouped.',
+      'remove.pending': 'Removing project…',
+      'remove.confirm': 'Remove',
+      'remove.cancel': 'Cancel',
+      'remove.done': 'Project removed',
       'rename.title': 'Rename session',
       'rename.confirm': 'Rename',
       'rename.cancel': 'Cancel',
@@ -334,6 +348,10 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-rename input{box-sizing:border-box;width:100%;height:34px;padding:0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;outline:none}',
       '.dsh-shelves-rename input:focus{border-color:var(--dsw-alias-brand-primary)}',
       '.dsh-shelves-rename-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-shelves-remove{display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary)}',
+      '.dsh-shelves-remove-pending{font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-shelves-remove-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-shelves-danger{color:var(--dsw-alias-state-error-primary)}',
       '.dsh-shelves-row:hover .dsh-shelves-time,.dsh-shelves-row:focus-within .dsh-shelves-time{opacity:0}',
       '.dsh-shelves-empty{padding:16px 10px;color:var(--dsw-alias-label-secondary);font-size:12px}',
       '.dsh-shelves-rail{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:36px;height:36px;margin:0 auto;border:0;border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;font-variant-numeric:tabular-nums;cursor:pointer}',
@@ -367,6 +385,7 @@ window.__ModuleLoader__.load({
       copy: 'M9 9h10v10H9zM5 15V5h10',
       image: 'M3.5 5.5h17v13h-17zM7 14.5l3.5-3.5 3 3 2-2 2 2M8 9.5h.01',
       search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5L20 20',
+      trash: 'M4 7h16M9.5 7V5h5v2M6.5 7l.8 12.5h9.4L17.5 7M10 11v5M14 11v5',
     };
 
     function glyph(name, size) {
@@ -893,9 +912,10 @@ window.__ModuleLoader__.load({
       );
     }
 
-    // One row's Workspace tile: the face above, with the picker opening from it.
+    // One row's Workspace tile: the face above, with the picker opening from it
+    // and the project menu on the context-menu gesture.
     function ProjectTile(props) {
-      const { icon, label, onOpen } = props;
+      const { icon, label, onOpen, onMenu } = props;
       return h(
         'button',
         {
@@ -906,6 +926,17 @@ window.__ModuleLoader__.load({
           onClick: (event) => {
             event.stopPropagation();
             onOpen(event);
+          },
+          onContextMenu: (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onMenu(event);
+          },
+          onKeyDown: (event) => {
+            if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            onMenu(event);
           },
         },
         h(ProjectFace, props),
@@ -1398,7 +1429,7 @@ window.__ModuleLoader__.load({
     }
 
     function Shelves(props) {
-      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, openSession, archiveSession, unarchiveSession, forkSession, renameSession, getOpenTabs, listFiles, readFileBytes, t } = props;
+      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, useWorkspaceAccess, openSession, archiveSession, unarchiveSession, forkSession, renameSession, deleteWorkspace, getOpenTabs, listFiles, readFileBytes, t } = props;
       const list = useSessions((state) => state) ?? EMPTY_LIST;
       const statuses = useSessionStatus((state) => state);
       const items = useWorkspaces((state) => state.items);
@@ -1431,11 +1462,14 @@ window.__ModuleLoader__.load({
       const [filePicker, setFilePicker] = React.useState(null);
       // One card menu at a time, anchored at the gesture point. `row` is the
       // occurrence snapshot; the element restores focus after a keyboard open.
+      // A project menu rides the same slot with `kind: 'project'`.
       const [cardMenu, setCardMenu] = React.useState(null);
       const cardMenuRef = React.useRef(null);
       cardMenuRef.current = cardMenu;
       // A rename request owns its draft so a rejected write keeps the dialog.
       const [rename, setRename] = React.useState(null);
+      // Removal keeps its target and failure text so a rejected write stays visible.
+      const [removeProject, setRemoveProject] = React.useState(null);
       const [toast, setToast] = React.useState(null);
       const [clock, bumpClock] = React.useReducer((n) => n + 1, 0);
       // The pointer point is a zero-size rect; the Menu primitive clamps it to
@@ -1476,8 +1510,8 @@ window.__ModuleLoader__.load({
         iconsStore.set(next);
       };
 
-      const openIconPicker = (row, event) => {
-        const rect = event.currentTarget.getBoundingClientRect();
+      const openIconPicker = (row, element) => {
+        const rect = element.getBoundingClientRect();
         const left = Math.max(8, Math.min(rect.left, window.innerWidth - 208));
         const height = 200;
         const top = rect.bottom + 6 + height > window.innerHeight ? Math.max(8, rect.top - height - 6) : rect.bottom + 6;
@@ -1539,6 +1573,8 @@ window.__ModuleLoader__.load({
         () => deriveRows(list, statuses, workspaceIndex(items), currentId, archived, pinned, icons),
         [list, statuses, items, currentId, archived, pinned, icons],
       );
+      // Owner-only; a shared page never receives a project removal row.
+      const canRemoveProject = useWorkspaceAccess(cardMenu?.row.workspaceId ?? '', 'workspace/delete');
 
       // A run that ends stays marked "Done" until the row is opened. DSH's own
       // `completionUnread` only fires for a session that is not the main view and
@@ -1689,7 +1725,15 @@ window.__ModuleLoader__.load({
       // It never opens the Session, so a background row keeps the selection.
       const openCardMenu = (row, point, keyboard, element) => {
         if (row.blank) return;
-        setCardMenu({ row, x: point.x, y: point.y, keyboard, element });
+        setCardMenu({ kind: 'session', row, x: point.x, y: point.y, keyboard, element });
+      };
+
+      // A project menu hangs off a Workspace tile or name: change its tile or
+      // remove its registration. Sessions and files stay untouched.
+      const openProjectMenu = (row, point, keyboard, element) => {
+        if (row.workspaceId === undefined) return;
+        setIconPicker(null);
+        setCardMenu({ kind: 'project', row, x: point.x, y: point.y, keyboard, element });
       };
 
       const closeCardMenu = () => {
@@ -1718,6 +1762,19 @@ window.__ModuleLoader__.load({
           label: row.archived ? t('action.unarchive') : t('action.archive'),
           icon: glyph(row.archived ? 'unarchive' : 'archive', 16),
         });
+        if (row.workspaceId !== undefined && canRemoveProject) {
+          items.push({ type: 'separator', id: 'card-menu-project' });
+          items.push({ id: 'removeProject', label: t('action.removeProject'), icon: glyph('trash', 16), danger: true });
+        }
+        return items;
+      };
+
+      const projectMenuItems = () => {
+        const items = [{ id: 'projectIcon', label: t('icon.edit'), icon: glyph('image', 16) }];
+        if (canRemoveProject) {
+          items.push({ type: 'separator', id: 'project-menu-remove' });
+          items.push({ id: 'removeProject', label: t('action.removeProject'), icon: glyph('trash', 16), danger: true });
+        }
         return items;
       };
 
@@ -1727,6 +1784,14 @@ window.__ModuleLoader__.load({
         closeCardMenu();
         // Read the live row: pin and archive state may have moved since opening.
         const row = rows.find((candidate) => candidate.id === menu.row.id) ?? menu.row;
+        if (menu.kind === 'project') {
+          if (id === 'projectIcon') {
+            if (menu.element?.isConnected) openIconPicker(row, menu.element);
+          } else if (id === 'removeProject' && row.workspaceId !== undefined) {
+            setRemoveProject({ workspaceId: row.workspaceId, name: row.workspace, busy: false, error: null });
+          }
+          return;
+        }
         if (id === 'pin') togglePin(row);
         else if (id === 'rename') setRename({ id: row.id, draft: row.title || '', busy: false, error: null });
         else if (id === 'fork') {
@@ -1742,6 +1807,9 @@ window.__ModuleLoader__.load({
             .then((ok) => showToast(ok ? t('action.copyIdDone') : t('action.copyIdFailed'), ok ? 'success' : 'error'))
             .catch(() => showToast(t('action.copyIdFailed'), 'error'));
         } else if (id === 'archive') toggleArchive(row);
+        else if (id === 'removeProject' && row.workspaceId !== undefined) {
+          setRemoveProject({ workspaceId: row.workspaceId, name: row.workspace, busy: false, error: null });
+        }
       };
 
       const submitRename = () => {
@@ -1764,6 +1832,29 @@ window.__ModuleLoader__.load({
           });
       };
 
+      // Removing a project only deletes the Workspace registration; the folder
+      // and every Session stay. A successful delete also drops the local tile choice.
+      const confirmRemoveProject = () => {
+        const target = removeProject;
+        if (target === null || target.busy) return;
+        setRemoveProject({ ...target, busy: true, error: null });
+        Promise.resolve()
+          .then(() => deleteWorkspace(target.workspaceId))
+          .then(() => {
+            updateIcon(target.workspaceId, null);
+            setRemoveProject(null);
+            showToast(t('remove.done'), 'success');
+          })
+          .catch((reason) => {
+            const message = reason instanceof Error ? reason.message : String(reason);
+            setRemoveProject((current) =>
+              current !== null && current.workspaceId === target.workspaceId
+                ? { ...current, busy: false, error: message }
+                : current,
+            );
+          });
+      };
+
       // The Workspace's tile: its chosen image, an emoji, or a two-letter monogram
       // in its own color. Clicking it opens the picker; an ungrouped Session has none.
       const renderProjectIcon = (row) => {
@@ -1776,7 +1867,17 @@ window.__ModuleLoader__.load({
           workspacePath: row.workspacePath,
           sessionId: row.id,
           readFileBytes,
-          onOpen: (event) => openIconPicker(row, event),
+          onOpen: (event) => openIconPicker(row, event.currentTarget),
+          onMenu: (event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const keyboard = event.type !== 'contextmenu';
+            openProjectMenu(
+              row,
+              keyboard ? { x: rect.left + 10, y: rect.bottom - 6 } : { x: event.clientX, y: event.clientY },
+              keyboard,
+              event.currentTarget,
+            );
+          },
         });
       };
 
@@ -1874,7 +1975,22 @@ window.__ModuleLoader__.load({
                   glyph('pin', 12),
                 )
               : null,
-            h('span', { className: 'dsh-shelves-ws' }, row.workspace),
+            h(
+              'span',
+              {
+                className: 'dsh-shelves-ws',
+                title: row.workspace || undefined,
+                onContextMenu:
+                  row.workspaceId === undefined
+                    ? undefined
+                    : (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openProjectMenu(row, { x: event.clientX, y: event.clientY }, false, event.currentTarget);
+                      },
+              },
+              row.workspace,
+            ),
             renderActivityBadge('jobs', row.jobsRunning, row.jobsLabels),
             renderActivityBadge('subagents', row.subagentsRunning, row.subagentLabels),
             terminalSessions.has(row.id)
@@ -2091,7 +2207,12 @@ window.__ModuleLoader__.load({
           h(Menu, {
             open: cardMenu !== null,
             anchor: null,
-            items: cardMenu === null ? [] : cardMenuItems(cardMenu.row),
+            items:
+              cardMenu === null
+                ? []
+                : cardMenu.kind === 'project'
+                  ? projectMenuItems()
+                  : cardMenuItems(cardMenu.row),
             onSelect: selectCardMenuItem,
             onClose: closeCardMenu,
             side: 'bottom',
@@ -2146,6 +2267,43 @@ window.__ModuleLoader__.load({
                 },
               }),
               rename?.error ? h('div', { className: 'dsh-shelves-rename-error', role: 'alert' }, rename.error) : null,
+            ),
+          ),
+          h(
+            Modal,
+            {
+              open: removeProject !== null,
+              onClose: () => {
+                if (removeProject === null || removeProject.busy) return;
+                setRemoveProject(null);
+              },
+              closeLabel: t('remove.cancel'),
+              title: t('remove.title'),
+              footer: [
+                h(
+                  Button,
+                  { key: 'cancel', onClick: () => (removeProject?.busy ? undefined : setRemoveProject(null)) },
+                  t('remove.cancel'),
+                ),
+                h(
+                  Button,
+                  {
+                    key: 'confirm',
+                    variant: 'outline',
+                    className: 'dsh-shelves-danger',
+                    disabled: removeProject?.busy === true,
+                    onClick: confirmRemoveProject,
+                  },
+                  t('remove.confirm'),
+                ),
+              ],
+            },
+            h(
+              'div',
+              { className: 'dsh-shelves-remove' },
+              h('div', null, t('remove.desc', { name: removeProject?.name ?? '' })),
+              removeProject?.busy ? h('div', { className: 'dsh-shelves-remove-pending', role: 'status' }, t('remove.pending')) : null,
+              removeProject?.error ? h('div', { className: 'dsh-shelves-remove-error', role: 'alert' }, removeProject.error) : null,
             ),
           ),
         ),
@@ -2278,6 +2436,8 @@ window.__ModuleLoader__.load({
                 openSession: (id) => ctx.uiWorkspace.openSession(id),
                 archiveSession: (id) => ctx.uiWorkspace.archiveSession(id),
                 unarchiveSession: (id) => ctx.uiWorkspace.unarchiveSession(id),
+                // Workspace-level removal: unregisters the project, keeps its files and sessions.
+                deleteWorkspace: (workspaceId) => ctx.workspaces.delete(workspaceId),
                 // Same Host paths the native Session menu uses.
                 forkSession: (id) => ctx.uiWorkspace.forkSession(id, undefined, { allowMigration: false }),
                 renameSession: async (id, title) => {

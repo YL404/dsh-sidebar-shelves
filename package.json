@@ -1,8 +1,8 @@
 {
   "name": "dsh-sidebar-shelves",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
-  "description": "Two-line session cards for the DSH sidebar: per-workspace project icons, pinning, archiving, status markers, job counts, and recency sorting",
+  "description": "Two-line session cards for the DSH sidebar: per-workspace project icons, pinning, archiving, project removal, status markers, job counts, and recency sorting",
   "license": "MIT",
   "author": "Han (https://github.com/YL404)",
   "repository": {
