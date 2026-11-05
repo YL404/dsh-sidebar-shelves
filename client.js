@@ -828,7 +828,7 @@ window.__ModuleLoader__.load({
           icon: workspace === undefined ? null : projectIcon(workspaceIconName(workspace), icons[workspace.workspaceId]),
           updatedAtMs,
           archived: archived.has(id),
-          pinned: pinned[id] !== undefined,
+          pinned: pinned[id] !== undefined && !archived.has(id),
           pending,
           completed,
           running,
@@ -1575,6 +1575,21 @@ window.__ModuleLoader__.load({
         () => deriveRows(list, statuses, workspaceIndex(items), currentId, archived, pinned, icons),
         [list, statuses, items, currentId, archived, pinned, icons],
       );
+      // Archiving drops the pin with the session, so unarchiving never brings
+      // back a pin that could not be seen or cleared while it was archived.
+      React.useEffect(() => {
+        setPinned((prev) => {
+          const next = {};
+          let dropped = false;
+          for (const [id, at] of Object.entries(prev)) {
+            if (archived.has(id)) dropped = true;
+            else next[id] = at;
+          }
+          if (!dropped) return prev;
+          writeJson(PINNED_KEY, next);
+          return next;
+        });
+      }, [archived]);
       // Owner-only; a shared page never receives a project removal row.
       const canRemoveProject = useWorkspaceAccess(cardMenu?.row.workspaceId ?? '', 'workspace/delete');
 
@@ -2006,20 +2021,22 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { className: 'dsh-shelves-actions' },
-            h(
-              'button',
-              {
-                type: 'button',
-                className: row.pinned ? 'dsh-shelves-action dsh-shelves-action-pinned' : 'dsh-shelves-action',
-                'aria-label': row.pinned ? t('action.unpin') : t('action.pin'),
-                title: row.pinned ? t('action.unpin') : t('action.pin'),
-                onClick: (event) => {
-                  event.stopPropagation();
-                  togglePin(row);
-                },
-              },
-              glyph('pin', 15),
-            ),
+            row.archived
+              ? null
+              : h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: row.pinned ? 'dsh-shelves-action dsh-shelves-action-pinned' : 'dsh-shelves-action',
+                    'aria-label': row.pinned ? t('action.unpin') : t('action.pin'),
+                    title: row.pinned ? t('action.unpin') : t('action.pin'),
+                    onClick: (event) => {
+                      event.stopPropagation();
+                      togglePin(row);
+                    },
+                  },
+                  glyph('pin', 15),
+                ),
             h(
               'button',
               {
