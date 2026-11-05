@@ -256,6 +256,9 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-badge-n{color:var(--dsw-alias-label-secondary)}',
       '.dsh-shelves-term{display:inline-flex;flex:none;align-items:center;color:var(--dsw-alias-state-business-primary)}',
       '.dsh-shelves-time{margin-left:auto;flex:none;font-size:12px;font-variant-numeric:tabular-nums;opacity:.7;transition:opacity .12s ease}',
+      // A working session's time carries the same brand color as its spinner, so
+      // the row reads as live without a second kind of accent.
+      '.dsh-shelves-time-running{color:var(--dsw-alias-brand-primary);font-weight:500;opacity:1}',
       '.dsh-shelves-status{display:inline-flex;align-items:center;justify-content:center;transition:opacity .12s ease}',
       '.dsh-shelves-status-working{color:var(--dsw-alias-brand-primary)}',
       '.dsh-shelves-status-warn{color:var(--dsw-alias-state-warn-primary)}',
@@ -1928,6 +1931,7 @@ window.__ModuleLoader__.load({
         const title = row.blank ? t('session.new') : row.title || t('session.untitled');
         const status = row.archived ? undefined : statusOf(row, unseen.has(row.id), t);
         const time = relativeTime(row.updatedAtMs, Date.now(), t);
+        const timeClass = status?.tone === 'working' ? 'dsh-shelves-time dsh-shelves-time-running' : 'dsh-shelves-time';
         const classes = ['dsh-shelves-row'];
         if (selected) classes.push('dsh-shelves-row-selected');
         if (row.archived) classes.push('dsh-shelves-row-archived');
@@ -1979,7 +1983,7 @@ window.__ModuleLoader__.load({
                   glyph(status.key, 13),
                 ),
             h('span', { className: status?.key === 'done' ? 'dsh-shelves-title dsh-shelves-title-done' : 'dsh-shelves-title' }, title),
-            time === '' ? null : h('span', { className: 'dsh-shelves-time' }, time),
+            time === '' ? null : h('span', { className: timeClass }, time),
           ),
           h(
             'span',
