@@ -705,9 +705,11 @@ window.__ModuleLoader__.load({
         context.fillRect(0, 0, ICON_CANVAS, ICON_CANVAS);
       }
       const ratio = ICON_CANVAS / 1024;
-      for (const group of spec.groups) {
+      // icon.json lists groups and their layers front to back, so the back-most
+      // paint first; walking them in file order would bury the art under its fill.
+      for (const group of [...spec.groups].reverse()) {
         if (group === null || typeof group !== 'object' || group.hidden === true) continue;
-        for (const layer of group.layers ?? []) {
+        for (const layer of [...(group.layers ?? [])].reverse()) {
           if (layerHidden(layer, appearance)) continue;
           const assetName = layer?.['image-name'];
           if (typeof assetName !== 'string' || assetName === '') continue;
