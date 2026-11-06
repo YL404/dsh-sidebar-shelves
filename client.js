@@ -1601,6 +1601,21 @@ window.__ModuleLoader__.load({
         '.dsh-shelves-settings, .dsh-shelves-gear',
         settingsGearRef,
       );
+      // The expanded Archived shelf folds back on a click anywhere outside it, so
+      // browsing the column never leaves it open. Its own header row and list keep
+      // it open, and the header button still toggles it.
+      React.useEffect(() => {
+        if (!archivedOpen) return undefined;
+        const onPointerDown = (event) => {
+          const target = event.target;
+          if (target instanceof Element && target.closest('.dsh-shelves-headrow, .dsh-shelves-archived-list') !== null) {
+            return;
+          }
+          setArchivedOpen(false);
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+      }, [archivedOpen]);
 
       const currentId = React.useMemo(() => {
         const byId = list.byId ?? {};
