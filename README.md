@@ -8,7 +8,7 @@ Two-line session cards for the [DeepSeek Harness](https://github.com/deepseek-ai
 - **Pinning** — pinned sessions lead the list; pinning applies to active sessions, and archiving clears the pin.
 - **Context menu** — right-click a card to pin, rename, fork, copy the Session ID, archive it, or remove its project; Shift+F10 opens the same menu from the keyboard.
 - **Project menu** — right-click a card's project tile or name to change its icon or remove the project; removal only unregisters the workspace and keeps its folder and sessions.
-- **Archiving** — archive a session by hand, or let cards archive themselves after 3, 7, 14, or 30 days. Archived sessions drop to the Archived shelf at the bottom; expanding it scrolls within a capped area.
+- **Archiving** — archive a session by hand, or let cards archive themselves after 3, 7, 14, or 30 days. Archived sessions drop to the Archived shelf at the bottom; expanding it scrolls within a capped area, and a click anywhere outside it folds it back.
 - **Status markers** — running and waiting markers; a running session's time takes the brand accent, and a terminal marker flags sessions that own one.
 - **Activity counts** — running background jobs and subagents per session, folded on the Host from the Session's own job records.
 - **Recency sorting** — newest input first, and the composer's Workspace menu reuses the same tiles and the same order.
@@ -58,7 +58,7 @@ DeepSeek Harness 侧边栏的会话卡片：每个会话是一张两行卡片。
 - **置顶** — 置顶会话排在最前，仅适用于活跃会话；归档时会自动取消置顶。
 - **右键菜单** — 在会话卡片上右键可置顶、重命名、分叉、复制会话 ID、归档或移除所属项目；键盘上 Shift+F10 打开同一菜单。
 - **项目菜单** — 在卡片的项目图标或项目名上右键，可更改项目图标或移除项目；移除只取消工作区注册，文件夹和会话都会保留。
-- **归档** — 手动归档，或按 3、7、14、30 天自动归档；归档的会话收进底部的「已归档」，展开后在限定高度内滚动。
+- **归档** — 手动归档，或按 3、7、14、30 天自动归档；归档的会话收进底部的「已归档」，展开后在限定高度内滚动，点击该区域以外的任何地方自动收起。
 - **状态标记** — 运行中、等待中标记；运行中会话的时间改用品牌色高亮，带终端会话另显示终端标记。
 - **活动计数** — 每个会话运行中的后台任务与子代理数量，由 Host 端从会话自身的任务记录折叠得出。
 - **按最近输入排序** — 输入框的工作区菜单复用同一套图标和同一套顺序。
