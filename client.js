@@ -245,7 +245,7 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-row{position:relative;display:flex;box-sizing:border-box;flex-direction:column;justify-content:center;width:100%;min-height:56px;padding:5px 10px;border-radius:8px;color:var(--dsw-alias-label-primary);font-size:14px;text-align:left;cursor:pointer;user-select:none}',
       '.dsh-shelves-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
       '.dsh-shelves-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}',
-      '.dsh-shelves-row-selected{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-shelves-row-selected{background:var(--dsw-specific-sidebar-nav-item-active,var(--dsw-alias-bg-layer-2))}',
       '.dsh-shelves-titleline{display:flex;align-items:center;gap:6px;min-width:0;min-height:22px}',
       '.dsh-shelves-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}',
       '.dsh-shelves-title-done{font-weight:700}',
