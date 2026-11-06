@@ -1785,9 +1785,29 @@ window.__ModuleLoader__.load({
       // Archive is the Host's own durable state, so it survives reloads and reaches
       // every client. A Session with running work refuses the plain archive; the
       // refusal is left as-is instead of driving a stop-and-archive flow.
+      //
+      // Archiving the card on screen clears the main view and shows the New
+      // Session page, so that one opens the card below instead — or the one
+      // above when it was last — once the archive is durable. A failure keeps
+      // the current card, so a refused archive never moves the user.
+      const nextAfterArchive = (row) => {
+        if (row.id !== currentId) return undefined;
+        const index = active.findIndex((candidate) => candidate.id === row.id);
+        if (index === -1) return undefined;
+        return active[index + 1] ?? active[index - 1];
+      };
+
       const toggleArchive = (row) => {
-        const run = row.archived ? unarchiveSession(row.id) : archiveSession(row.id);
-        Promise.resolve(run).catch(() => {});
+        if (row.archived) {
+          Promise.resolve(unarchiveSession(row.id)).catch(() => {});
+          return;
+        }
+        const next = nextAfterArchive(row);
+        Promise.resolve(archiveSession(row.id))
+          .then(() => {
+            if (next !== undefined) open(next);
+          })
+          .catch(() => {});
       };
 
       const togglePin = (row) => {
