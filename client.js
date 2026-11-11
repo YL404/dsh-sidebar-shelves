@@ -36,6 +36,9 @@ window.__ModuleLoader__.load({
     const SETTINGS_KEY = 'dsh:sidebar-shelves:settings';
     const PINNED_KEY = 'dsh:sidebar-shelves:pinned';
     const ICONS_KEY = 'dsh:sidebar-shelves:icons';
+    // Collapsed workspace groups in the tree view; keys are workspace ids, with
+    // '' for the no-workspace bucket.
+    const COLLAPSED_KEY = 'dsh:sidebar-shelves:collapsed';
     // Mirrors the Host half's projection key; the Host folds owned jobs there.
     const JOB_ACTIVITY_KEY = 'sidebarShelvesJobActivity';
     const AUTO_ARCHIVE_CHOICES = [3, 7, 14, 30];
@@ -102,6 +105,10 @@ window.__ModuleLoader__.load({
       'settings.autoArchive': '自动归档',
       'settings.off': '关闭',
       'settings.days': '{n} 天',
+      'settings.view': '视图',
+      'settings.view.flat': '平铺（按时间）',
+      'settings.view.tree': '按工作区分组',
+      'group.unspecified': '未指定工作区',
       'action.archive': '归档会话',
       'action.unarchive': '取消归档',
       'action.pin': '置顶会话',
@@ -164,6 +171,10 @@ window.__ModuleLoader__.load({
       'settings.autoArchive': 'Auto-archive',
       'settings.off': 'Off',
       'settings.days': '{n} days',
+      'settings.view': 'View',
+      'settings.view.flat': 'Flat list',
+      'settings.view.tree': 'Group by workspace',
+      'group.unspecified': 'No workspace',
       'action.archive': 'Archive session',
       'action.unarchive': 'Unarchive session',
       'action.pin': 'Pin session',
@@ -290,6 +301,8 @@ window.__ModuleLoader__.load({
       '.dsh-shelves-headtile{width:16px;height:16px}',
       '.dsh-shelves-headtile svg,.dsh-shelves-headtile .dsh-shelves-proj-img{display:block;width:16px;height:16px}',
       '.dsh-shelves-headtile .dsh-shelves-proj-emoji{font-size:12px}',
+      '.dsh-shelves-group-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-shelves-group-body{display:flex;flex-direction:column;gap:2px;margin-left:7px;padding-left:10px;border-left:1px solid var(--dsw-alias-border-l1)}',
       // Collapsed on macOS the frame's chrome (traffic lights, the two reopen
       // controls) owns the band the header starts in, and the title row pads
       // itself past that band. The tile keeps its 16px of flow but draws it
@@ -459,6 +472,7 @@ window.__ModuleLoader__.load({
     function normalizeSettings(raw) {
       return {
         autoArchiveDays: typeof raw.autoArchiveDays === 'number' ? raw.autoArchiveDays : null,
+        view: raw.view === 'flat' ? 'flat' : 'tree',
       };
     }
 
@@ -854,6 +868,32 @@ window.__ModuleLoader__.load({
         return right.updatedAtMs - left.updatedAtMs;
       });
       return rows;
+    }
+
+    // Tree-view grouping. Rows arrive sorted (blank drafts, then pinned, then
+    // newest input); grouping them by Workspace keeps each row's relative
+    // order inside its group and orders groups by their first row's position.
+    // The blank draft stays ungrouped on top; rows without a Workspace share
+    // one bucket under the first of them.
+    function buildGroups(rows) {
+      const blanks = [];
+      const groups = [];
+      const seen = new Map();
+      for (const row of rows) {
+        if (row.blank) {
+          blanks.push(row);
+          continue;
+        }
+        const key = row.workspaceId ?? '';
+        const group = seen.get(key);
+        if (group === undefined) {
+          const fresh = { key, workspaceId: row.workspaceId, workspace: row.workspace, icon: row.icon, first: row, rows: [] };
+          seen.set(key, fresh);
+          groups.push(fresh);
+        }
+        seen.get(key).rows.push(row);
+      }
+      return { blanks, groups };
     }
 
     function statusOf(row, unseen, t) {
@@ -1502,6 +1542,9 @@ window.__ModuleLoader__.load({
       const [settingsPopover, setSettingsPopover] = React.useState(null);
       const settingsGearRef = React.useRef(null);
       const [archivedOpen, setArchivedOpen] = React.useState(false);
+      // Collapsed workspace groups in the tree view; persisted so the folds
+      // survive reloads. The value is a map of workspace id -> 1.
+      const [collapsed, setCollapsed] = React.useState(() => normalizeMap(readJson(COLLAPSED_KEY, {})));
       const [iconPicker, setIconPicker] = React.useState(null);
       const [filePicker, setFilePicker] = React.useState(null);
       // One card menu at a time, anchored at the gesture point. `row` is the
@@ -1816,6 +1859,15 @@ window.__ModuleLoader__.load({
         else delete next[row.id];
         updatePinned(next);
       };
+
+      const toggleGroup = (key) =>
+        setCollapsed((prev) => {
+          const next = { ...prev };
+          if (next[key] === undefined) next[key] = 1;
+          else delete next[key];
+          writeJson(COLLAPSED_KEY, next);
+          return next;
+        });
 
       const showToast = (text, tone) => setToast({ text, tone, key: Date.now() });
 
@@ -2151,11 +2203,87 @@ window.__ModuleLoader__.load({
           accessory ?? null,
         );
 
+      // One Workspace group's header in the tree view: the shelf-header shape
+      // with the project tile replacing the label and the project menu riding
+      // the context-menu gesture, mirroring the row's workspace-name behavior.
+      const renderGroupHeader = (group) => {
+        const open = collapsed[group.key] === undefined;
+        const first = group.first;
+        return h(
+          'div',
+          { key: `group-${group.key}`, className: 'dsh-shelves-headrow' },
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-shelves-head',
+              'aria-expanded': open ? 'true' : 'false',
+              title: group.workspace === '' ? t('group.unspecified') : group.workspace,
+              onClick: () => toggleGroup(group.key),
+              onContextMenu: (event) => {
+                if (group.workspaceId === undefined) return;
+                event.preventDefault();
+                event.stopPropagation();
+                openProjectMenu(first, { x: event.clientX, y: event.clientY }, false, event.currentTarget);
+              },
+              onKeyDown: (event) => {
+                if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+                if (group.workspaceId === undefined) return;
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+                openProjectMenu(first, { x: rect.left + 10, y: rect.bottom - 6 }, true, event.currentTarget);
+              },
+            },
+            h(
+              'span',
+              { className: open ? 'dsh-shelves-chevron dsh-shelves-chevron-open' : 'dsh-shelves-chevron' },
+              glyph('chevron', 14),
+            ),
+            group.workspaceId === undefined
+              ? null
+              : h(
+                  'span',
+                  { className: `dsh-shelves-headtile dsh-shelves-pi-${first.icon.color}` },
+                  h(ProjectFace, {
+                    icon: first.icon,
+                    workspaceId: first.workspaceId,
+                    workspacePath: first.workspacePath,
+                    sessionId: first.id,
+                    readFileBytes,
+                  }),
+                ),
+            h(
+              'span',
+              { className: 'dsh-shelves-group-title' },
+              group.workspace === '' ? t('group.unspecified') : group.workspace,
+            ),
+            h('span', { className: 'dsh-shelves-count' }, String(group.rows.length)),
+          ),
+        );
+      };
+
       const stack = [];
       if (rows.length === 0) {
         stack.push(h('div', { key: 'empty', className: 'dsh-shelves-empty' }, t('shelf.empty')));
       } else {
-        for (const row of active) stack.push(renderRow(row));
+        if (settings.view === 'tree') {
+          const { blanks, groups } = buildGroups(active);
+          for (const row of blanks) stack.push(renderRow(row));
+          for (const group of groups) {
+            stack.push(renderGroupHeader(group));
+            if (collapsed[group.key] === undefined) {
+              stack.push(
+                h(
+                  'div',
+                  { key: `group-body-${group.key}`, className: 'dsh-shelves-group-body' },
+                  group.rows.map((row) => renderRow(row)),
+                ),
+              );
+            }
+          }
+        } else {
+          for (const row of active) stack.push(renderRow(row));
+        }
 
         const bottom = [];
         bottom.push(
@@ -2294,6 +2422,26 @@ window.__ModuleLoader__.load({
                 },
                 h('option', { value: '' }, t('settings.off')),
                 AUTO_ARCHIVE_CHOICES.map((days) => h('option', { key: days, value: String(days) }, t('settings.days', { n: days }))),
+              ),
+              h('span', { className: 'dsh-shelves-select-chevron' }, glyph('chevron', 12)),
+            ),
+          ),
+          h(
+            'div',
+            { className: 'dsh-shelves-setting' },
+            h('span', null, t('settings.view')),
+            h(
+              'span',
+              { className: 'dsh-shelves-select' },
+              h(
+                'select',
+                {
+                  'aria-label': t('settings.view'),
+                  value: settings.view,
+                  onChange: (event) => updateSettings({ view: event.target.value === 'flat' ? 'flat' : 'tree' }),
+                },
+                h('option', { value: 'tree' }, t('settings.view.tree')),
+                h('option', { value: 'flat' }, t('settings.view.flat')),
               ),
               h('span', { className: 'dsh-shelves-select-chevron' }, glyph('chevron', 12)),
             ),

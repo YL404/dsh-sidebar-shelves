@@ -12,6 +12,7 @@ Two-line session cards for the [DeepSeek Harness](https://github.com/deepseek-ai
 - **Status markers** — running and waiting markers; a running session's time takes the brand accent, and a terminal marker flags sessions that own one.
 - **Activity counts** — running background jobs and subagents per session, folded on the Host from the Session's own job records.
 - **Recency sorting** — newest input first, and the composer's Workspace menu reuses the same tiles and the same order.
+- **Workspace tree view** — group cards under a collapsible header per Workspace (project tile, name, and session count), with the blank draft and no-workspace sessions kept as their own entries. Folds persist across reloads; the settings gear switches between the grouped view and the flat list.
 - **Header tile** — the open session's Workspace tile sits just before its title in the conversation header.
 
 ## Requirements
@@ -35,8 +36,9 @@ Uninstall with `dsh plugin --profile desktop remove dsh-sidebar-shelves`, or rem
 
 | State | Where |
 |---|---|
-| Settings (tile style, auto-archive days) | browser local storage `dsh:sidebar-shelves:settings` |
+| Settings (tile style, auto-archive days, view) | browser local storage `dsh:sidebar-shelves:settings` |
 | Pins | browser local storage `dsh:sidebar-shelves:pinned` |
+| Collapsed workspace groups | browser local storage `dsh:sidebar-shelves:collapsed` |
 | Icon choices | browser local storage `dsh:sidebar-shelves:icons` |
 | Job counts | Session projection on the Host, rebuilt from job events |
 
@@ -62,6 +64,7 @@ DeepSeek Harness 侧边栏的会话卡片：每个会话是一张两行卡片。
 - **状态标记** — 运行中、等待中标记；运行中会话的时间改用品牌色高亮，带终端会话另显示终端标记。
 - **活动计数** — 每个会话运行中的后台任务与子代理数量，由 Host 端从会话自身的任务记录折叠得出。
 - **按最近输入排序** — 输入框的工作区菜单复用同一套图标和同一套顺序。
+- **工作区树视图** — 卡片按工作区分组，每组一个可折叠的分组头（项目图标、名称与会话数），空白草稿与无工作区会话各自成组。折叠状态跨会话保留；设置齿轮可在分组视图与平铺列表间切换。
 - **标题前图标** — 打开的会话在标题前显示所属工作区的图标。
 
 安装：
