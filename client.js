@@ -896,6 +896,14 @@ window.__ModuleLoader__.load({
       return { blanks, groups };
     }
 
+    // Tree-view collapse toggle: keys present in the map are folded groups.
+    function toggleCollapsed(map, key) {
+      const next = { ...map };
+      if (next[key] === undefined) next[key] = 1;
+      else delete next[key];
+      return next;
+    }
+
     function statusOf(row, unseen, t) {
       if (row.pending === 'approval') return { key: 'approval', tone: 'warn', label: t('status.approval') };
       if (row.pending === 'plan-review') return { key: 'planReview', tone: 'warn', label: t('status.planReview') };
@@ -1860,14 +1868,13 @@ window.__ModuleLoader__.load({
         updatePinned(next);
       };
 
-      const toggleGroup = (key) =>
-        setCollapsed((prev) => {
-          const next = { ...prev };
-          if (next[key] === undefined) next[key] = 1;
-          else delete next[key];
-          writeJson(COLLAPSED_KEY, next);
-          return next;
-        });
+      // Persist folds once per change; the write lives outside the state
+      // updater so a double render can never double-write a stale snapshot.
+      React.useEffect(() => {
+        writeJson(COLLAPSED_KEY, collapsed);
+      }, [collapsed]);
+
+      const toggleGroup = (key) => setCollapsed((prev) => toggleCollapsed(prev, key));
 
       const showToast = (text, tone) => setToast({ text, tone, key: Date.now() });
 
