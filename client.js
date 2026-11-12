@@ -228,10 +228,6 @@ window.__ModuleLoader__.load({
       // this marker.
       '[data-sidebar-scrollport]:has(.dsh-shelves-root){grid-template-rows:8px max-content 2px minmax(0,1fr)}',
       '[data-sidebar-scrollport] .dsh-shelves-root{height:100%}',
-      // While the sidebar viewport can still scroll (a panel stack taller than
-      // the column), let it consume the gesture before this list takes over,
-      // matching the section-scroller contract.
-      '@container scroll-state(scrollable: bottom){[data-sidebar-scrollport] .dsh-shelves-scroll{overflow-y:hidden}}',
       '.dsh-shelves-scroll{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}',
       '.dsh-shelves-scroll::-webkit-scrollbar{display:none;width:0;height:0}',
       '.dsh-shelves-stack{display:flex;flex:1 1 auto;flex-direction:column;gap:2px;padding:6px 4px 10px}',
@@ -386,10 +382,6 @@ window.__ModuleLoader__.load({
     const EMPTY_LIST = { ids: [], byId: {}, projectionsBySession: {} };
     const EMPTY_TABS = [];
     const NO_SUBSCRIBE = () => () => {};
-    // DSH 0.2.1 has no section-scroller hook; the fallback keeps the same
-    // component shape while the scroll column stays the only scroller there.
-    const NOOP_SECTION_SCROLLER = { bindScrollerRef: () => {} };
-    const useNoopSectionScroller = () => NOOP_SECTION_SCROLLER;
 
     const ICONS = {
       working: 'M12 3a9 9 0 1 0 9 9',
@@ -1487,11 +1479,7 @@ window.__ModuleLoader__.load({
     }
 
     function Shelves(props) {
-      const { wide, expandSidebar, useSectionScroller = useNoopSectionScroller, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, useWorkspaceAccess, openSession, archiveSession, unarchiveSession, forkSession, renameSession, deleteWorkspace, getOpenTabs, listFiles, readFileBytes, t } = props;
-      // DSH 0.2.2's sidebar viewport hands the section a scroller binding: wheel
-      // scrolling moves the navigation away before this list moves. Older shells
-      // omit the hook, and their scroll column remains the one scroller.
-      const sectionScroller = useSectionScroller();
+      const { wide, expandSidebar, useSessions, useSessionStatus, useWorkspaces, usePanelInfo, useWorkspaceAccess, openSession, archiveSession, unarchiveSession, forkSession, renameSession, deleteWorkspace, getOpenTabs, listFiles, readFileBytes, t } = props;
       const list = useSessions((state) => state) ?? EMPTY_LIST;
       const statuses = useSessionStatus((state) => state);
       const items = useWorkspaces((state) => state.items);
@@ -2329,7 +2317,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { key: 'root', className: 'dsh-shelves-root' },
-          h('div', { className: 'dsh-shelves-scroll', ref: sectionScroller.bindScrollerRef }, h('div', { className: 'dsh-shelves-stack' }, stack)),
+          h('div', { className: 'dsh-shelves-scroll' }, h('div', { className: 'dsh-shelves-stack' }, stack)),
           renderIconPicker(),
           renderSettingsPopover(),
           filePicker === null
